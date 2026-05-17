@@ -1,0 +1,14 @@
+{{define "page"}}
+<div class="card error-page center">
+    <p class="error-code">{{.StatusCode}}</p>
+    <h1>{{.ErrorTitle}}</h1>
+    <p class="topic-meta">{{.ErrorMessage}}</p>
+    <p class="mt-2">
+        {{if .IsLoggedIn}}
+            <a href="/forum">Retour au forum</a>
+        {{else}}
+            <a href="/">Retour à l'accueil</a>
+        {{end}}
+    </p>
+</div>
+{{end}}

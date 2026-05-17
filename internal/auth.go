@@ -95,14 +95,15 @@ func GetUserFromContext(ctx context.Context) *User {
 }
 
 // SetSessionCookie ajoute le cookie de session dans la réponse
-func SetSessionCookie(w http.ResponseWriter, token string) {
+func SetSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	cookie := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   int(SessionDuration.Seconds()),
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPSRequest(r),
+		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, cookie)
 }
@@ -122,9 +123,14 @@ func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   isHTTPSRequest(r),
+		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, clearCookie)
+}
+
+func isHTTPSRequest(r *http.Request) bool {
+	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 // RequireAuth est un middleware qui vérifie l'authentification

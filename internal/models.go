@@ -95,4 +95,8 @@ type PageData struct {
 	SelectedCategoryID   string
 	SelectedCategoryName string
 	Message              string // Pour afficher des messages de succès/erreur
+	FormValues           map[string]string
+	StatusCode           int
+	ErrorTitle           string
+	ErrorMessage         string
 }

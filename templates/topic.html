@@ -1,6 +1,6 @@
 {{define "page"}}
 {{if .Topic}}
-<div class="card">
+<article class="card">
     <p class="topic-meta">
         <a href="/forum">Forum</a> /
         <a href="/forum?category={{.Topic.CategoryID}}">{{.Topic.CategoryName}}</a>
@@ -25,13 +25,13 @@
             <form method="POST" action="/forum/post/{{.Topic.ID}}/vote" class="vote-form">
                 <input type="hidden" name="vote" value="like">
                 <button type="submit" class="vote-button {{if eq .Topic.UserVote "like"}}active{{end}}">
-                    Like ({{.Topic.Likes}})
+                    J'aime ({{.Topic.Likes}})
                 </button>
             </form>
             <form method="POST" action="/forum/post/{{.Topic.ID}}/vote" class="vote-form">
                 <input type="hidden" name="vote" value="dislike">
                 <button type="submit" class="vote-button {{if eq .Topic.UserVote "dislike"}}active{{end}}">
-                    Dislike ({{.Topic.Dislikes}})
+                    Je n'aime pas ({{.Topic.Dislikes}})
                 </button>
             </form>
         </div>
@@ -44,14 +44,14 @@
     <div class="post-content mt-2">
         {{.Topic.Content}}
     </div>
-</div>
+</article>
 
 <div class="card">
     <h2>Commentaires</h2>
 
     {{if .Comments}}
         {{range .Comments}}
-        <div class="reply" style="margin-left: 0;">
+        <div class="reply reply-flat">
             <div class="reply-header">
                 <strong>{{.Username}}</strong> -
                 {{.CreatedAt.Format "02/01/2006 15:04"}} -
@@ -64,13 +64,13 @@
                     <form method="POST" action="/forum/post/{{$.Topic.ID}}/comments/{{.ID}}/vote" class="vote-form">
                         <input type="hidden" name="vote" value="like">
                         <button type="submit" class="vote-button {{if eq .UserVote "like"}}active{{end}}">
-                            Like ({{.Likes}})
+                            J'aime ({{.Likes}})
                         </button>
                     </form>
                     <form method="POST" action="/forum/post/{{$.Topic.ID}}/comments/{{.ID}}/vote" class="vote-form">
                         <input type="hidden" name="vote" value="dislike">
                         <button type="submit" class="vote-button {{if eq .UserVote "dislike"}}active{{end}}">
-                            Dislike ({{.Dislikes}})
+                            Je n'aime pas ({{.Dislikes}})
                         </button>
                     </form>
                 </div>
@@ -87,8 +87,8 @@
     {{if .IsLoggedIn}}
         <form method="POST" action="/forum/post/{{.Topic.ID}}/reply">
             <div class="form-group">
-                <label for="content">Commentaire:</label>
-                <textarea id="content" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
+                <label for="content">Commentaire</label>
+                <textarea id="content" name="content" class="compact-textarea" required maxlength="2000" placeholder="Votre commentaire..."></textarea>
             </div>
             <button type="submit">Envoyer le commentaire</button>
         </form>

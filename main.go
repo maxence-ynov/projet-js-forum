@@ -20,7 +20,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Routes publiques avec middleware optionnel (charge l'utilisateur s'il est connecté)
-	mux.HandleFunc("GET /", internal.LoadUserIfAuthenticated(internal.HomeHandler))
+	mux.HandleFunc("GET /{$}", internal.LoadUserIfAuthenticated(internal.HomeHandler))
 	mux.HandleFunc("GET /register", internal.LoadUserIfAuthenticated(internal.RegisterPageHandler))
 	mux.HandleFunc("POST /register", internal.RegisterHandler)
 	mux.HandleFunc("GET /login", internal.LoginPageHandler)
@@ -31,7 +31,7 @@ func main() {
 	mux.HandleFunc("GET /forum", internal.RequireAuth(internal.ForumHandler))
 	mux.HandleFunc("GET /profile", internal.RequireAuth(internal.ProfileHandler))
 	mux.HandleFunc("POST /forum/post", internal.RequireAuth(internal.CreatePostHandler))
-	mux.HandleFunc("GET /forum/post/{id}", internal.LoadUserIfAuthenticated(internal.TopicHandler))
+	mux.HandleFunc("GET /forum/post/{id}", internal.RequireAuth(internal.TopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/reply", internal.RequireAuth(internal.CreateReplyHandler))
 	mux.HandleFunc("POST /forum/post/{id}/vote", internal.RequireAuth(internal.VoteTopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/comments/{commentID}/vote", internal.RequireAuth(internal.VoteCommentHandler))
@@ -39,12 +39,15 @@ func main() {
 	// Servir les fichiers statiques
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
+	// Page 404 pour toutes les routes non déclarées
+	mux.HandleFunc("/", internal.NotFoundHandler)
+
 	// Démarrer le serveur
 	adresse := "localhost:8080"
 	fmt.Printf("🚀 Serveur démarré sur http://%s\n", adresse)
 	fmt.Println("Appuyez sur Ctrl+C pour arrêter")
 
-	err = http.ListenAndServe(adresse, mux)
+	err = http.ListenAndServe(adresse, internal.RecoveryMiddleware(mux))
 	if err != nil {
 		log.Fatalf("Erreur serveur: %v", err)
 	}

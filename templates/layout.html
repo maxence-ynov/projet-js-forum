@@ -3,382 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forum - Accueil</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 1rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            margin-left: 2rem;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        nav a:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-            margin-bottom: 1.5rem;
-        }
-
-        h1, h2, h3 {
-            color: #2c3e50;
-            margin-bottom: 1rem;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        input, textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        button {
-            background-color: #3498db;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            align-self: flex-start;
-        }
-
-        button:hover {
-            background-color: #2980b9;
-        }
-
-        .button-secondary {
-            background-color: #95a5a6;
-        }
-
-        .button-secondary:hover {
-            background-color: #7f8c8d;
-        }
-
-        .message {
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .message.error {
-            background-color: #fadbd8;
-            color: #c0392b;
-            border-left: 4px solid #c0392b;
-        }
-
-        .message.success {
-            background-color: #d5f4e6;
-            color: #27ae60;
-            border-left: 4px solid #27ae60;
-        }
-
-        .post {
-            border-left: 4px solid #3498db;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background-color: #ecf0f1;
-            border-radius: 4px;
-        }
-
-        .post-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: #7f8c8d;
-        }
-
-        .post-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 0.5rem;
-        }
-
-        .post-content {
-            margin-bottom: 0.5rem;
-            line-height: 1.6;
-        }
-
-        .reply {
-            background-color: white;
-            padding: 1rem;
-            margin-left: 2rem;
-            margin-bottom: 0.5rem;
-            border-radius: 4px;
-            border-left: 3px solid #95a5a6;
-        }
-
-        .reply-header {
-            font-size: 0.85rem;
-            color: #7f8c8d;
-            margin-bottom: 0.5rem;
-        }
-
-        .reply-form {
-            background-color: #f9f9f9;
-            padding: 1rem;
-            margin-left: 2rem;
-            margin-bottom: 1rem;
-            border-radius: 4px;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .button-group button {
-            flex: 1;
-        }
-
-        .vote-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .vote-form {
-            display: inline-flex;
-            flex-direction: row;
-        }
-
-        .vote-button {
-            background-color: white;
-            color: #2c3e50;
-            border: 1px solid #bdc3c7;
-            padding: 0.45rem 0.8rem;
-            font-size: 0.9rem;
-        }
-
-        .vote-button:hover,
-        .vote-button.active {
-            background-color: #2c3e50;
-            color: white;
-        }
-
-        footer {
-            background-color: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
-        }
-
-        a {
-            color: #3498db;
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        .center {
-            text-align: center;
-        }
-
-        .mt-2 {
-            margin-top: 1rem;
-        }
-
-        .home-grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 1.5rem;
-            align-items: start;
-        }
-
-        .category-list,
-        .topic-list {
-            list-style: none;
-        }
-
-        .category-item,
-        .topic-item {
-            padding: 1rem 0;
-            border-bottom: 1px solid #ecf0f1;
-        }
-
-        .category-item:last-child,
-        .topic-item:last-child {
-            border-bottom: none;
-        }
-
-        .category-name,
-        .topic-name {
-            display: block;
-            color: #2c3e50;
-            font-weight: 700;
-            margin-bottom: 0.35rem;
-        }
-
-        .category-link {
-            display: inline-block;
-            color: #2c3e50;
-            font-weight: 700;
-            margin-bottom: 0.35rem;
-            padding: 0.35rem 0.55rem;
-            border-radius: 4px;
-            text-decoration: none;
-        }
-
-        .category-link:hover,
-        .category-link.active {
-            background-color: #3498db;
-            color: white;
-            text-decoration: none;
-        }
-
-        .category-filter {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .category-description,
-        .topic-meta {
-            color: #7f8c8d;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .topic-category {
-            display: inline-block;
-            background-color: #ecf0f1;
-            color: #2c3e50;
-            border-radius: 4px;
-            padding: 0.2rem 0.45rem;
-            margin-right: 0.4rem;
-            font-size: 0.85rem;
-        }
-
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-family: inherit;
-            background-color: white;
-        }
-
-        @media (max-width: 800px) {
-            .home-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .header-container,
-            nav {
-                display: flex;
-                flex-direction: column;
-                gap: 0.75rem;
-                align-items: flex-start;
-            }
-
-            nav a {
-                margin-left: 0;
-                padding-left: 0;
-            }
-        }
-    </style>
+    <title>Forum - Projet étudiant</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <header>
+    <header class="site-header">
         <div class="header-container">
-            <div class="logo">💬 Forum</div>
-            <nav>
+            <a class="logo" href="/">Forum Étudiant</a>
+            <nav class="site-nav" aria-label="Navigation principale">
                 {{if .IsLoggedIn}}
-                    <span>Bienvenue, <strong>{{.User.Username}}</strong></span>
+                    <span class="nav-user">Bienvenue, <strong>{{.User.Username}}</strong></span>
                     <a href="/forum">Forum</a>
                     <a href="/profile">Mes sujets</a>
                     <a href="/logout">Déconnexion</a>
                 {{else}}
+                    <a href="/">Accueil</a>
                     <a href="/login">Connexion</a>
-                    <a href="/register">Inscription</a>
+                    <a class="nav-action" href="/register">Inscription</a>
                 {{end}}
             </nav>
         </div>
     </header>
 
-    <div class="container">
+    <main class="container">
         {{if .Message}}
-            {{if contains .Message "incorrect" "existe" "correspond" "obligatoires" "caractères" "invalide" "vide"}}
+            {{if contains .Message "incorrect" "existe" "correspond" "obligatoires" "caractères" "invalide" "vide" "court"}}
                 <div class="message error">{{.Message}}</div>
             {{else}}
                 <div class="message success">{{.Message}}</div>
@@ -386,10 +35,10 @@
         {{end}}
 
         {{template "page" .}}
-    </div>
+    </main>
 
-    <footer>
-        <p>&copy; 2024 Forum - Projet Golang Étudiant</p>
+    <footer class="site-footer">
+        <p>&copy; 2024 Forum - Projet Golang étudiant</p>
     </footer>
 </body>
 </html>

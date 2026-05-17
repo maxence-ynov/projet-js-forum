@@ -1,7 +1,9 @@
 {{define "page"}}
-<div class="card">
-    <h1>Accueil du forum</h1>
-    <p style="color: #7f8c8d;">Parcourez les catégories et les derniers sujets publiés.</p>
+<div class="card page-hero">
+    <div>
+        <h1>Accueil du forum</h1>
+        <p class="page-kicker">Parcourez les catégories, retrouvez les derniers sujets et participez aux discussions.</p>
+    </div>
 </div>
 
 <div class="home-grid">
@@ -66,11 +68,11 @@
 
         <div class="mt-2">
             {{if .IsLoggedIn}}
-                <a href="/forum{{if .SelectedCategoryID}}?category={{.SelectedCategoryID}}{{end}}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+                <a class="btn" href="/forum{{if .SelectedCategoryID}}?category={{.SelectedCategoryID}}{{end}}">
                     Créer un sujet
                 </a>
             {{else}}
-                <a href="/login" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+                <a class="btn" href="/login">
                     Se connecter pour participer
                 </a>
             {{end}}

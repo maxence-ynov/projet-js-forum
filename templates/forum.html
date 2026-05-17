@@ -1,10 +1,17 @@
 {{define "page"}}
+<div class="card page-hero">
+    <div>
+        <h1>Forum</h1>
+        <p class="page-kicker">Créez un sujet clair, choisissez une catégorie et échangez avec les autres membres.</p>
+    </div>
+</div>
+
 <div class="card">
     <h2>Créer un nouveau sujet</h2>
     
     <form method="POST" action="/forum/post">
         <div class="form-group">
-            <label for="category_id">Catégorie:</label>
+            <label for="category_id">Catégorie</label>
             <select id="category_id" name="category_id" required>
                 <option value="">Choisir une catégorie</option>
                 {{range .Categories}}
@@ -14,13 +21,13 @@
         </div>
 
         <div class="form-group">
-            <label for="title">Titre:</label>
-            <input type="text" id="title" name="title" required placeholder="Entrez le titre de votre sujet">
+            <label for="title">Titre</label>
+            <input type="text" id="title" name="title" value="{{index .FormValues "title"}}" required minlength="3" maxlength="120" placeholder="Entrez le titre de votre sujet">
         </div>
         
         <div class="form-group">
-            <label for="content">Message:</label>
-            <textarea id="content" name="content" required placeholder="Écrivez votre message ici..."></textarea>
+            <label for="content">Message</label>
+            <textarea id="content" name="content" required minlength="10" maxlength="5000" placeholder="Écrivez votre message ici...">{{index .FormValues "content"}}</textarea>
         </div>
         
         <button type="submit">Publier</button>
@@ -38,14 +45,14 @@
 </div>
 
 {{if .SelectedCategoryName}}
-    <h2 style="margin-top: 2rem; margin-bottom: 1rem;">Sujets dans {{.SelectedCategoryName}}</h2>
+    <h2 class="section-title">Sujets dans {{.SelectedCategoryName}}</h2>
 {{else}}
-    <h2 style="margin-top: 2rem; margin-bottom: 1rem;">Les derniers sujets</h2>
+    <h2 class="section-title">Les derniers sujets</h2>
 {{end}}
 
 {{if .Topics}}
     {{range .Topics}}
-    <div class="post">
+    <article class="topic-card">
         <div class="post-header">
             <span>
                 <span class="topic-category">{{.CategoryName}}</span>
@@ -58,9 +65,23 @@
         
         <div class="post-title"><a href="/forum/post/{{.ID}}">{{.Title}}</a></div>
         <div class="post-content">{{.Content}}</div>
+        <div class="vote-actions">
+            <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
+                <input type="hidden" name="vote" value="like">
+                <button type="submit" class="vote-button {{if eq .UserVote "like"}}active{{end}}">
+                    J'aime ({{.Likes}})
+                </button>
+            </form>
+            <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
+                <input type="hidden" name="vote" value="dislike">
+                <button type="submit" class="vote-button {{if eq .UserVote "dislike"}}active{{end}}">
+                    Je n'aime pas ({{.Dislikes}})
+                </button>
+            </form>
+        </div>
         
         {{if .Comments}}
-            <div style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;">
+            <div class="topic-stats">
                 {{len .Comments}} commentaire(s)
             </div>
             
@@ -77,19 +98,19 @@
         
         <form method="POST" action="/forum/post/{{.ID}}/reply" class="reply-form">
             <div class="form-group">
-                <label for="content-{{.ID}}">Commenter:</label>
-                <textarea id="content-{{.ID}}" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
+                <label for="content-{{.ID}}">Commenter</label>
+                <textarea id="content-{{.ID}}" name="content" class="compact-textarea" required maxlength="2000" placeholder="Votre commentaire..."></textarea>
             </div>
             <button type="submit">Envoyer le commentaire</button>
         </form>
-    </div>
+    </article>
     {{end}}
 {{else}}
-    <div class="card center" style="color: #7f8c8d;">
+    <div class="card center">
         {{if .SelectedCategoryName}}
-            <p>Aucun sujet dans cette catégorie pour le moment.</p>
+            <p class="topic-meta">Aucun sujet dans cette catégorie pour le moment.</p>
         {{else}}
-            <p>Aucun sujet pour le moment. Soyez le premier à créer un sujet.</p>
+            <p class="topic-meta">Aucun sujet pour le moment. Soyez le premier à créer un sujet.</p>
         {{end}}
     </div>
 {{end}}

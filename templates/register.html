@@ -1,30 +1,26 @@
 {{define "page"}}
-<div class="card">
+<div class="card auth-card">
     <h2>Inscription</h2>
-    
-    {{if .Message}}
-        <div class="message error">{{.Message}}</div>
-    {{end}}
     
     <form method="POST" action="/register">
         <div class="form-group">
-            <label for="username">Nom d'utilisateur:</label>
-            <input type="text" id="username" name="username" required minlength="3">
+            <label for="username">Nom d'utilisateur</label>
+            <input type="text" id="username" name="username" value="{{index .FormValues "username"}}" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_-]+">
         </div>
         
         <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{index .FormValues "email"}}" required maxlength="254">
         </div>
         
         <div class="form-group">
-            <label for="password">Mot de passe:</label>
-            <input type="password" id="password" name="password" required minlength="6">
+            <label for="password">Mot de passe</label>
+            <input type="password" id="password" name="password" required minlength="6" maxlength="72">
         </div>
         
         <div class="form-group">
-            <label for="password_confirm">Confirmer le mot de passe:</label>
-            <input type="password" id="password_confirm" name="password_confirm" required minlength="6">
+            <label for="password_confirm">Confirmer le mot de passe</label>
+            <input type="password" id="password_confirm" name="password_confirm" required minlength="6" maxlength="72">
         </div>
         
         <button type="submit">S'inscrire</button>
