@@ -30,29 +30,29 @@ const commentSelectColumns = `
 	(SELECT COUNT(*) FROM votes v WHERE v.target_type = 'comment' AND v.target_id = c.id AND v.vote_type = 'dislike')
 `
 
-// DB est la variable globale pour la connexion à la base de données
+// DB garde la connexion SQLite partagée par les handlers.
 var DB *sql.DB
 
-// InitDB initialise la base de données SQLite
-// Ouvre forum.db et crée les tables automatiquement
+// InitDB ouvre la base SQLite et vérifie que les tables existent.
 func InitDB(nomFichier string) error {
 	var err error
 
-	// Ouvrir la connexion à SQLite
 	DB, err = sql.Open("sqlite3", nomFichier)
 	if err != nil {
 		return fmt.Errorf("erreur ouverture BD: %w", err)
 	}
 
-	// Vérifier que la connexion fonctionne
 	err = DB.Ping()
 	if err != nil {
 		return fmt.Errorf("erreur connexion BD: %w", err)
 	}
 
+	if err := enableForeignKeys(); err != nil {
+		return fmt.Errorf("erreur activation clés étrangères: %w", err)
+	}
+
 	log.Printf("✓ Base de données '%s' connectée", nomFichier)
 
-	// Créer toutes les tables
 	err = createAllTables()
 	if err != nil {
 		return fmt.Errorf("erreur création tables: %w", err)
@@ -68,7 +68,7 @@ func InitDB(nomFichier string) error {
 	return nil
 }
 
-// CloseDB ferme la connexion à la base de données
+// CloseDB ferme la connexion à la base de données.
 func CloseDB() error {
 	if DB != nil {
 		return DB.Close()
@@ -76,44 +76,37 @@ func CloseDB() error {
 	return nil
 }
 
-// createAllTables crée toutes les tables nécessaires
+func enableForeignKeys() error {
+	_, err := DB.Exec("PRAGMA foreign_keys = ON")
+	return err
+}
+
+// createAllTables garde le démarrage simple: l'application crée son schéma si besoin.
 func createAllTables() error {
-	// Table users
 	if err := createUsersTable(); err != nil {
 		return err
 	}
 
-	// Table categories
 	if err := createCategoriesTable(); err != nil {
 		return err
 	}
 
-	// Table topics
 	if err := createTopicsTable(); err != nil {
 		return err
 	}
 
-	// Table comments
 	if err := createCommentsTable(); err != nil {
 		return err
 	}
 
-	// Table likes
-	if err := createLikesTable(); err != nil {
-		return err
-	}
-
-	// Table dislikes
-	if err := createDislikesTable(); err != nil {
-		return err
-	}
-
-	// Table votes
 	if err := createVotesTable(); err != nil {
 		return err
 	}
 
-	// Table sessions
+	if err := dropOldVoteTables(); err != nil {
+		return err
+	}
+
 	if err := createSessionsTable(); err != nil {
 		return err
 	}
@@ -139,7 +132,7 @@ func seedDefaultCategories() error {
 	return nil
 }
 
-// createUsersTable crée la table des utilisateurs
+// createUsersTable crée la table des utilisateurs.
 func createUsersTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
@@ -154,7 +147,7 @@ func createUsersTable() error {
 	return err
 }
 
-// createCategoriesTable crée la table des catégories
+// createCategoriesTable crée la table des catégories.
 func createCategoriesTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS categories (
@@ -168,7 +161,7 @@ func createCategoriesTable() error {
 	return err
 }
 
-// createTopicsTable crée la table des sujets/topics
+// createTopicsTable crée la table des sujets.
 func createTopicsTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS topics (
@@ -187,7 +180,7 @@ func createTopicsTable() error {
 	return err
 }
 
-// createCommentsTable crée la table des commentaires
+// createCommentsTable crée la table des commentaires.
 func createCommentsTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS comments (
@@ -205,45 +198,7 @@ func createCommentsTable() error {
 	return err
 }
 
-// createLikesTable crée la table des likes
-func createLikesTable() error {
-	query := `
-	CREATE TABLE IF NOT EXISTS likes (
-		id TEXT PRIMARY KEY,
-		user_id TEXT NOT NULL,
-		topic_id TEXT,
-		comment_id TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-		FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
-		FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
-		UNIQUE(user_id, topic_id, comment_id)
-	);
-	`
-	_, err := DB.Exec(query)
-	return err
-}
-
-// createDislikesTable crée la table des dislikes.
-func createDislikesTable() error {
-	query := `
-	CREATE TABLE IF NOT EXISTS dislikes (
-		id TEXT PRIMARY KEY,
-		user_id TEXT NOT NULL,
-		topic_id TEXT,
-		comment_id TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-		FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
-		FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
-		UNIQUE(user_id, topic_id, comment_id)
-	);
-	`
-	_, err := DB.Exec(query)
-	return err
-}
-
-// createVotesTable crée la table des votes avec un seul vote par utilisateur et cible.
+// createVotesTable limite chaque utilisateur à un vote par sujet ou commentaire.
 func createVotesTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS votes (
@@ -262,7 +217,15 @@ func createVotesTable() error {
 	return err
 }
 
-// createSessionsTable crée la table des sessions
+func dropOldVoteTables() error {
+	if _, err := DB.Exec("DROP TABLE IF EXISTS likes"); err != nil {
+		return err
+	}
+	_, err := DB.Exec("DROP TABLE IF EXISTS dislikes")
+	return err
+}
+
+// createSessionsTable crée la table des sessions.
 func createSessionsTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS sessions (
@@ -278,9 +241,7 @@ func createSessionsTable() error {
 	return err
 }
 
-// ============= USERS =============
-
-// GetUserByUsername récupère un utilisateur par son nom d'utilisateur
+// GetUserByUsername récupère un utilisateur par son nom d'utilisateur.
 func GetUserByUsername(username string) (*User, error) {
 	user := &User{}
 	query := "SELECT id, username, email, password, created_at FROM users WHERE username = ?"
@@ -299,7 +260,7 @@ func GetUserByUsername(username string) (*User, error) {
 	return user, nil
 }
 
-// GetUserByEmail récupère un utilisateur par son email
+// GetUserByEmail récupère un utilisateur par son email.
 func GetUserByEmail(email string) (*User, error) {
 	user := &User{}
 	query := "SELECT id, username, email, password, created_at FROM users WHERE email = ?"
@@ -318,7 +279,7 @@ func GetUserByEmail(email string) (*User, error) {
 	return user, nil
 }
 
-// GetUserByID récupère un utilisateur par son ID
+// GetUserByID récupère un utilisateur par son ID.
 func GetUserByID(id string) (*User, error) {
 	user := &User{}
 	query := "SELECT id, username, email, password, created_at FROM users WHERE id = ?"
@@ -337,7 +298,7 @@ func GetUserByID(id string) (*User, error) {
 	return user, nil
 }
 
-// CreateUser crée un nouvel utilisateur
+// CreateUser crée un nouvel utilisateur.
 func CreateUser(user *User) error {
 	query := "INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)"
 
@@ -349,9 +310,7 @@ func CreateUser(user *User) error {
 	return nil
 }
 
-// ============= SESSIONS =============
-
-// CreateSession crée une nouvelle session
+// CreateSession enregistre une session côté serveur.
 func CreateSession(session *Session) error {
 	query := "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)"
 
@@ -363,7 +322,7 @@ func CreateSession(session *Session) error {
 	return nil
 }
 
-// GetSessionByToken récupère une session par token (si elle n'a pas expiré)
+// GetSessionByToken ignore les sessions expirées.
 func GetSessionByToken(token string) (*Session, error) {
 	session := &Session{}
 	query := `
@@ -386,7 +345,7 @@ func GetSessionByToken(token string) (*Session, error) {
 	return session, nil
 }
 
-// DeleteSession supprime une session par token
+// DeleteSession supprime une session par token.
 func DeleteSession(token string) error {
 	query := "DELETE FROM sessions WHERE token = ?"
 
@@ -398,9 +357,7 @@ func DeleteSession(token string) error {
 	return nil
 }
 
-// ============= CATEGORIES =============
-
-// CreateCategory crée une nouvelle catégorie
+// CreateCategory crée une nouvelle catégorie.
 func CreateCategory(category *Category) error {
 	query := "INSERT INTO categories (id, name, description) VALUES (?, ?, ?)"
 
@@ -412,7 +369,7 @@ func CreateCategory(category *Category) error {
 	return nil
 }
 
-// GetAllCategories récupère toutes les catégories
+// GetAllCategories récupère toutes les catégories.
 func GetAllCategories() ([]Category, error) {
 	query := "SELECT id, name, description, created_at FROM categories ORDER BY name ASC"
 
@@ -435,7 +392,7 @@ func GetAllCategories() ([]Category, error) {
 	return categories, rows.Err()
 }
 
-// GetCategoryByID récupère une catégorie par son ID
+// GetCategoryByID récupère une catégorie par son ID.
 func GetCategoryByID(id string) (*Category, error) {
 	category := &Category{}
 	query := "SELECT id, name, description, created_at FROM categories WHERE id = ?"
@@ -454,8 +411,6 @@ func GetCategoryByID(id string) (*Category, error) {
 	return category, nil
 }
 
-// ============= TOPICS =============
-
 func scanTopic(scanner interface {
 	Scan(dest ...any) error
 }) (Topic, error) {
@@ -469,6 +424,7 @@ func scanTopic(scanner interface {
 }
 
 func queryTopics(where, orderBy, limit string, args ...any) ([]Topic, error) {
+	// Les colonnes communes évitent de dupliquer les compteurs de commentaires et de votes.
 	query := "SELECT " + topicSelectColumns + topicJoins
 	if strings.TrimSpace(where) != "" {
 		query += " WHERE " + where
@@ -498,7 +454,7 @@ func queryTopics(where, orderBy, limit string, args ...any) ([]Topic, error) {
 	return topics, rows.Err()
 }
 
-// CreateTopic crée un nouveau topic/sujet
+// CreateTopic crée un nouveau sujet.
 func CreateTopic(topic *Topic) error {
 	query := `
 		INSERT INTO topics (id, category_id, user_id, title, content)
@@ -513,27 +469,27 @@ func CreateTopic(topic *Topic) error {
 	return nil
 }
 
-// GetAllTopics récupère tous les topics avec les infos utilisateur
+// GetAllTopics récupère tous les sujets avec les infos d'auteur.
 func GetAllTopics() ([]Topic, error) {
 	return queryTopics("", "t.updated_at DESC", "")
 }
 
-// GetLatestTopics récupère les derniers topics avec leur nombre de commentaires.
+// GetLatestTopics récupère les derniers sujets avec leur nombre de commentaires.
 func GetLatestTopics(limit int) ([]Topic, error) {
 	return queryTopics("", "t.created_at DESC", "?", limit)
 }
 
-// GetTopicsByCategory récupère tous les topics d'une catégorie
+// GetTopicsByCategory récupère tous les sujets d'une catégorie.
 func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 	return queryTopics("t.category_id = ?", "t.updated_at DESC", "", categoryID)
 }
 
-// GetTopicsByUser récupère les topics créés par un utilisateur.
+// GetTopicsByUser récupère les sujets créés par un utilisateur.
 func GetTopicsByUser(userID string) ([]Topic, error) {
 	return queryTopics("t.user_id = ?", "t.created_at DESC", "", userID)
 }
 
-// GetLikedTopicsByUser récupère les topics likés par un utilisateur.
+// GetLikedTopicsByUser récupère les sujets likés par un utilisateur.
 func GetLikedTopicsByUser(userID string) ([]Topic, error) {
 	query := "SELECT " + topicSelectColumns + topicJoins + `
 		JOIN votes uv ON uv.target_type = 'topic'
@@ -561,12 +517,12 @@ func GetLikedTopicsByUser(userID string) ([]Topic, error) {
 	return topics, rows.Err()
 }
 
-// GetLatestTopicsByCategory récupère les derniers topics d'une catégorie.
+// GetLatestTopicsByCategory récupère les derniers sujets d'une catégorie.
 func GetLatestTopicsByCategory(categoryID string, limit int) ([]Topic, error) {
 	return queryTopics("t.category_id = ?", "t.created_at DESC", "?", categoryID, limit)
 }
 
-// GetTopicByID récupère un topic par son ID
+// GetTopicByID récupère un sujet par son ID.
 func GetTopicByID(id string) (*Topic, error) {
 	query := "SELECT " + topicSelectColumns + topicJoins + " WHERE t.id = ?"
 	topic, err := scanTopic(DB.QueryRow(query, id))
@@ -581,8 +537,6 @@ func GetTopicByID(id string) (*Topic, error) {
 	return &topic, nil
 }
 
-// ============= COMMENTS =============
-
 func scanComment(scanner interface {
 	Scan(dest ...any) error
 }) (Comment, error) {
@@ -595,7 +549,7 @@ func scanComment(scanner interface {
 	return comment, err
 }
 
-// CreateComment crée un nouveau commentaire
+// CreateComment crée un nouveau commentaire.
 func CreateComment(comment *Comment) error {
 	query := "INSERT INTO comments (id, topic_id, user_id, content) VALUES (?, ?, ?, ?)"
 
@@ -607,7 +561,7 @@ func CreateComment(comment *Comment) error {
 	return nil
 }
 
-// GetCommentsByTopic récupère tous les commentaires d'un topic
+// GetCommentsByTopic récupère tous les commentaires d'un sujet.
 func GetCommentsByTopic(topicID string) ([]Comment, error) {
 	query := "SELECT " + commentSelectColumns + `
 		FROM comments c
@@ -634,7 +588,7 @@ func GetCommentsByTopic(topicID string) ([]Comment, error) {
 	return comments, rows.Err()
 }
 
-// GetCommentByID récupère un commentaire par son ID
+// GetCommentByID récupère un commentaire par son ID.
 func GetCommentByID(id string) (*Comment, error) {
 	query := "SELECT " + commentSelectColumns + `
 		FROM comments c
@@ -654,52 +608,6 @@ func GetCommentByID(id string) (*Comment, error) {
 	return &comment, nil
 }
 
-// ============= LIKES =============
-
-// CreateLike crée un like pour un topic ou commentaire
-func CreateLike(like *Like) error {
-	query := "INSERT INTO likes (id, user_id, topic_id, comment_id) VALUES (?, ?, ?, ?)"
-
-	_, err := DB.Exec(query, like.ID, like.UserID, like.TopicID, like.CommentID)
-	if err != nil {
-		return fmt.Errorf("erreur création like: %w", err)
-	}
-
-	return nil
-}
-
-// DeleteLike supprime un like
-func DeleteLike(id string) error {
-	query := "DELETE FROM likes WHERE id = ?"
-
-	_, err := DB.Exec(query, id)
-	if err != nil {
-		return fmt.Errorf("erreur suppression like: %w", err)
-	}
-
-	return nil
-}
-
-// GetLikesByTopic récupère le nombre de likes pour un topic
-func GetLikesByTopic(topicID string) (int, error) {
-	return countVotes("topic", topicID, "like")
-}
-
-// GetLikesByComment récupère le nombre de likes pour un commentaire
-func GetLikesByComment(commentID string) (int, error) {
-	return countVotes("comment", commentID, "like")
-}
-
-// GetDislikesByTopic récupère le nombre de dislikes pour un topic.
-func GetDislikesByTopic(topicID string) (int, error) {
-	return countVotes("topic", topicID, "dislike")
-}
-
-// GetDislikesByComment récupère le nombre de dislikes pour un commentaire.
-func GetDislikesByComment(commentID string) (int, error) {
-	return countVotes("comment", commentID, "dislike")
-}
-
 func countVotes(targetType, targetID, voteType string) (int, error) {
 	var count int
 	query := "SELECT COUNT(*) FROM votes WHERE target_type = ? AND target_id = ? AND vote_type = ?"
@@ -712,12 +620,12 @@ func countVotes(targetType, targetID, voteType string) (int, error) {
 	return count, nil
 }
 
-// UserLikedTopic vérifie si un utilisateur a aimé un topic
+// UserLikedTopic vérifie si un utilisateur a liké un sujet.
 func UserLikedTopic(userID, topicID string) (bool, error) {
 	return userHasVote(userID, "topic", topicID, "like")
 }
 
-// UserLikedComment vérifie si un utilisateur a aimé un commentaire
+// UserLikedComment vérifie si un utilisateur a liké un commentaire.
 func UserLikedComment(userID, commentID string) (bool, error) {
 	return userHasVote(userID, "comment", commentID, "like")
 }
@@ -754,7 +662,7 @@ func GetUserVote(userID, targetType, targetID string) (string, error) {
 	return voteType, nil
 }
 
-// SetVote crée ou remplace le vote d'un utilisateur pour une cible.
+// SetVote crée le vote ou le remplace si l'utilisateur avait déjà voté.
 func SetVote(userID, targetType, targetID, voteType string) error {
 	if targetType != "topic" && targetType != "comment" {
 		return fmt.Errorf("type de cible invalide")

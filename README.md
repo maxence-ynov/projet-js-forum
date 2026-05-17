@@ -45,6 +45,7 @@ L'objectif est de fournir un forum simple, lisible et facilement extensible, ada
 - Un compilateur C compatible avec `github.com/mattn/go-sqlite3`
 
 > `go-sqlite3` utilise CGO. Sur Windows, installez par exemple MinGW-w64 ou un environnement équivalent si la compilation SQLite échoue.
+> Docker n'est pas nécessaire pour lancer le projet en local.
 
 ### Cloner le projet
 
@@ -65,11 +66,17 @@ go mod download
 go mod tidy
 ```
 
-## Lancement
+## Lancement local Windows
 
-Lancer l'application en local :
+Depuis PowerShell, placez-vous à la racine du projet puis téléchargez les modules Go :
 
-```bash
+```powershell
+go mod download
+```
+
+Lancez ensuite l'application :
+
+```powershell
 go run main.go
 ```
 

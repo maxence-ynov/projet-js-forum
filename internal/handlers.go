@@ -19,7 +19,7 @@ const (
 	latestTopics
 )
 
-// HomeHandler affiche la page d'accueil
+// HomeHandler affiche la page d'accueil.
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
 	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
@@ -47,11 +47,10 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "index.html", data)
 }
 
-// RegisterPageHandler affiche la page d'inscription
+// RegisterPageHandler affiche la page d'inscription.
 func RegisterPageHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
 
-	// Si déjà connecté, rediriger vers le forum
 	if user != nil {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
 		return
@@ -64,7 +63,7 @@ func RegisterPageHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "register.html", data)
 }
 
-// RegisterHandler traite l'inscription d'un nouvel utilisateur
+// RegisterHandler traite l'inscription d'un nouvel utilisateur.
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	err := parseLimitedForm(w, r)
 	if err != nil {
@@ -97,7 +96,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérifier si le username existe déjà
 	existingUser, err := GetUserByUsername(username)
 	if err != nil {
 		log.Printf("Erreur BD: %v", err)
@@ -110,7 +108,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérifier si l'email existe déjà
 	existingEmail, err := GetUserByEmail(email)
 	if err != nil {
 		log.Printf("Erreur BD: %v", err)
@@ -123,7 +120,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hasher le mot de passe
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		log.Printf("Erreur hashage: %v", err)
@@ -131,7 +127,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Créer le nouvel utilisateur
 	newUser := &User{
 		ID:       uuid.New().String(),
 		Username: username,
@@ -146,7 +141,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Créer une session automatique et rediriger
+	// Après inscription, l'utilisateur est connecté directement.
 	token, err := CreateUserSession(newUser.ID)
 	if err != nil {
 		log.Printf("Erreur création session: %v", err)
@@ -158,11 +153,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/forum", http.StatusSeeOther)
 }
 
-// LoginPageHandler affiche la page de connexion
+// LoginPageHandler affiche la page de connexion.
 func LoginPageHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 
-	// Si déjà connecté, rediriger vers le forum
 	if user != nil {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
 		return
@@ -175,7 +169,7 @@ func LoginPageHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "login.html", data)
 }
 
-// LoginHandler traite la connexion d'un utilisateur
+// LoginHandler traite la connexion d'un utilisateur.
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := parseLimitedForm(w, r)
 	if err != nil {
@@ -186,7 +180,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 
-	// Valider les données
 	if username == "" || password == "" {
 		renderAuthFormError(w, "login.html", "Tous les champs sont obligatoires", map[string]string{"username": username})
 		return
@@ -196,7 +189,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer l'utilisateur
 	user, err := GetUserByUsername(username)
 	if err != nil {
 		log.Printf("Erreur BD: %v", err)
@@ -209,13 +201,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérifier le mot de passe
 	if !VerifyPassword(user.Password, password) {
 		renderAuthFormError(w, "login.html", "Identifiant ou mot de passe incorrect", map[string]string{"username": username})
 		return
 	}
 
-	// Créer une session
 	token, err := CreateUserSession(user.ID)
 	if err != nil {
 		log.Printf("Erreur création session: %v", err)
@@ -227,21 +217,32 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/forum", http.StatusSeeOther)
 }
 
-// LogoutHandler déconnecte l'utilisateur
+// LogoutHandler déconnecte l'utilisateur.
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	ClearSessionCookie(w, r)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// ForumHandler affiche la page du forum
+// ForumHandler affiche la page du forum.
 func ForumHandler(w http.ResponseWriter, r *http.Request) {
-	user := GetUserFromRequest(r)
+	user := GetUserFromContext(r.Context())
 	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
+	activeFilter := strings.TrimSpace(r.URL.Query().Get("filter"))
+	if activeFilter == "" {
+		activeFilter = "all"
+	}
+	if activeFilter != "all" {
+		selectedCategoryID = ""
+	}
 
-	categories, topics, selectedCategoryName, err := loadCategoryTopics(selectedCategoryID, allTopics, 0)
+	categories, topics, selectedCategoryName, err := loadForumTopics(user, selectedCategoryID, activeFilter)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
 			NotFoundHandler(w, r)
+			return
+		}
+		if errors.Is(err, errAuthRequired) {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 		log.Printf("Erreur récupération forum: %v", err)
@@ -249,24 +250,20 @@ func ForumHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charger les commentaires pour chaque sujet
-	for i := range topics {
-		comments, err := GetCommentsByTopic(topics[i].ID)
-		if err != nil {
-			log.Printf("Erreur récupération commentaires: %v", err)
-			continue
-		}
-		topics[i].Comments = comments
-		topics[i].CommentCount = len(comments)
+	if err := fillTopicListDetails(topics, user); err != nil {
+		log.Printf("Erreur préparation liste forum: %v", err)
+		RenderServerError(w, r)
+		return
 	}
 
 	data := PageData{
-		IsLoggedIn:           true,
+		IsLoggedIn:           user != nil,
 		User:                 user,
 		Categories:           categories,
 		Topics:               topics,
 		SelectedCategoryID:   selectedCategoryID,
 		SelectedCategoryName: selectedCategoryName,
+		ActiveFilter:         activeFilter,
 	}
 
 	renderTemplate(w, "layout.html", "forum.html", data)
@@ -304,7 +301,7 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "profile.html", data)
 }
 
-// CreatePostHandler crée un nouveau post
+// CreatePostHandler crée un nouveau sujet.
 func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 	if user == nil {
@@ -338,7 +335,6 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Créer le sujet
 	topic := &Topic{
 		ID:         uuid.New().String(),
 		CategoryID: categoryID,
@@ -394,7 +390,7 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "topic.html", data)
 }
 
-// CreateReplyHandler crée une réponse à un post
+// CreateReplyHandler crée une réponse sur un sujet.
 func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 	if user == nil {
@@ -408,7 +404,6 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer l'ID du sujet depuis l'URL
 	topicID := r.PathValue("id")
 	if !isValidUUID(topicID) {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
@@ -433,7 +428,6 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Créer le commentaire
 	comment := &Comment{
 		ID:      uuid.New().String(),
 		TopicID: topicID,
@@ -451,7 +445,7 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/forum/post/"+topicID, http.StatusSeeOther)
 }
 
-// VoteTopicHandler enregistre un like ou dislike sur un sujet.
+// VoteTopicHandler enregistre le vote d'un utilisateur sur un sujet.
 func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 	if user == nil {
@@ -488,6 +482,7 @@ func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SetVote remplace l'ancien vote au lieu d'ajouter une deuxième ligne.
 	err = SetVote(user.ID, "topic", topic.ID, voteType)
 	if err != nil {
 		log.Printf("Erreur enregistrement vote sujet: %v", err)
@@ -498,7 +493,7 @@ func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/forum/post/"+topic.ID, http.StatusSeeOther)
 }
 
-// VoteCommentHandler enregistre un like ou dislike sur un commentaire.
+// VoteCommentHandler enregistre le vote d'un utilisateur sur un commentaire.
 func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 	if user == nil {
@@ -547,6 +542,7 @@ func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Même logique que pour les sujets: un seul vote par utilisateur et commentaire.
 	err = SetVote(user.ID, "comment", comment.ID, voteType)
 	if err != nil {
 		log.Printf("Erreur enregistrement vote commentaire: %v", err)
@@ -594,6 +590,7 @@ func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message,
 		Categories:         categories,
 		Topics:             topics,
 		SelectedCategoryID: selectedCategoryID,
+		ActiveFilter:       "all",
 		Message:            message,
 		FormValues: formValues(map[string]string{
 			"title":   r.FormValue("title"),
@@ -602,6 +599,55 @@ func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message,
 	}
 
 	renderFormError(w, http.StatusUnprocessableEntity, "forum.html", data)
+}
+
+var errAuthRequired = errors.New("authentification requise")
+
+func loadForumTopics(user *User, selectedCategoryID, activeFilter string) ([]Category, []Topic, string, error) {
+	categories, err := GetAllCategories()
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	selectedCategoryName := ""
+	if selectedCategoryID != "" {
+		if !isValidCategoryID(selectedCategoryID) {
+			return nil, nil, "", errNotFound
+		}
+
+		category, err := GetCategoryByID(selectedCategoryID)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		if category == nil {
+			return nil, nil, "", errNotFound
+		}
+		selectedCategoryName = category.Name
+	}
+
+	switch activeFilter {
+	case "all":
+		if selectedCategoryID != "" {
+			topics, err := GetTopicsByCategory(selectedCategoryID)
+			return categories, topics, selectedCategoryName, err
+		}
+		topics, err := GetAllTopics()
+		return categories, topics, selectedCategoryName, err
+	case "mine":
+		if user == nil {
+			return nil, nil, "", errAuthRequired
+		}
+		topics, err := GetTopicsByUser(user.ID)
+		return categories, topics, selectedCategoryName, err
+	case "liked":
+		if user == nil {
+			return nil, nil, "", errAuthRequired
+		}
+		topics, err := GetLikedTopicsByUser(user.ID)
+		return categories, topics, selectedCategoryName, err
+	default:
+		return nil, nil, "", errNotFound
+	}
 }
 
 func loadCategoryTopics(selectedCategoryID string, mode topicListMode, limit int) ([]Category, []Topic, string, error) {
@@ -643,6 +689,27 @@ func topicsForCategory(categoryID string, mode topicListMode, limit int) ([]Topi
 		return GetLatestTopics(limit)
 	}
 	return GetAllTopics()
+}
+
+func fillTopicListDetails(topics []Topic, user *User) error {
+	for i := range topics {
+		comments, err := GetCommentsByTopic(topics[i].ID)
+		if err != nil {
+			return err
+		}
+		topics[i].Comments = comments
+		topics[i].CommentCount = len(comments)
+
+		if user != nil {
+			vote, err := GetUserVote(user.ID, "topic", topics[i].ID)
+			if err != nil {
+				return err
+			}
+			topics[i].UserVote = vote
+		}
+	}
+
+	return nil
 }
 
 func fillTopicDetails(topic *Topic, user *User) ([]Comment, error) {

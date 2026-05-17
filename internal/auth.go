@@ -16,24 +16,24 @@ const (
 	SessionDuration   = 24 * time.Hour
 )
 
-// Clé privée pour stocker l'utilisateur dans le contexte (évite les collisions)
+// Type privé pour éviter les collisions avec d'autres valeurs du contexte.
 type userContextKeyType string
 
 const userContextKey userContextKeyType = "user"
 
-// HashPassword génère un hash bcrypt du mot de passe
+// HashPassword génère un hash bcrypt du mot de passe.
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(hash), err
 }
 
-// VerifyPassword vérifie un mot de passe contre son hash
+// VerifyPassword compare le mot de passe saisi avec son hash.
 func VerifyPassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
 }
 
-// GenerateToken génère un token aléatoire
+// GenerateToken génère un token aléatoire utilisé pour les sessions.
 func GenerateToken() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -42,7 +42,7 @@ func GenerateToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// CreateUserSession crée une nouvelle session pour un utilisateur
+// CreateUserSession crée une session côté base et renvoie le token à mettre en cookie.
 func CreateUserSession(userID string) (string, error) {
 	token, err := GenerateToken()
 	if err != nil {
@@ -65,7 +65,7 @@ func CreateUserSession(userID string) (string, error) {
 	return token, nil
 }
 
-// GetUserFromRequest récupère l'utilisateur à partir de la requête (cookie de session)
+// GetUserFromRequest retrouve l'utilisateur grâce au cookie de session.
 func GetUserFromRequest(r *http.Request) *User {
 	cookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
@@ -85,7 +85,7 @@ func GetUserFromRequest(r *http.Request) *User {
 	return user
 }
 
-// GetUserFromContext récupère l'utilisateur depuis le contexte de la requête
+// GetUserFromContext récupère l'utilisateur déjà chargé par un middleware.
 func GetUserFromContext(ctx context.Context) *User {
 	user, ok := ctx.Value(userContextKey).(*User)
 	if !ok {
@@ -94,7 +94,8 @@ func GetUserFromContext(ctx context.Context) *User {
 	return user
 }
 
-// SetSessionCookie ajoute le cookie de session dans la réponse
+// SetSessionCookie stocke seulement le token dans le navigateur.
+// Les vraies informations de session restent en base de données.
 func SetSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	cookie := &http.Cookie{
 		Name:     SessionCookieName,
@@ -108,15 +109,13 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, cookie)
 }
 
-// ClearSessionCookie supprime le cookie de session
+// ClearSessionCookie supprime la session en base puis expire le cookie côté navigateur.
 func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(SessionCookieName)
 	if err == nil {
-		// Supprimer la session de la base de données
 		DeleteSession(cookie.Value)
 	}
 
-	// Supprimer le cookie
 	clearCookie := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    "",
@@ -133,8 +132,7 @@ func isHTTPSRequest(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
-// RequireAuth est un middleware qui vérifie l'authentification
-// et ajoute l'utilisateur dans le contexte de la requête
+// RequireAuth bloque la page si l'utilisateur n'est pas connecté.
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := GetUserFromRequest(r)
@@ -143,7 +141,6 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Ajouter l'utilisateur dans le contexte
 		ctx := context.WithValue(r.Context(), userContextKey, user)
 		r = r.WithContext(ctx)
 
@@ -151,14 +148,11 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// LoadUserIfAuthenticated est un middleware optionnel qui charge l'utilisateur
-// s'il est connecté, sans redirection. Utile pour les pages publiques.
+// LoadUserIfAuthenticated charge l'utilisateur si possible, sans forcer la connexion.
 func LoadUserIfAuthenticated(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := GetUserFromRequest(r)
-		// user peut être nil, ce qui est acceptable ici
 
-		// Ajouter l'utilisateur dans le contexte (nil ou non)
 		ctx := context.WithValue(r.Context(), userContextKey, user)
 		r = r.WithContext(ctx)
 

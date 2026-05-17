@@ -9,17 +9,15 @@ import (
 )
 
 func main() {
-	// Initialiser la base de données
 	err := internal.InitDB("forum.db")
 	if err != nil {
 		log.Fatalf("Erreur initialisation BD: %v", err)
 	}
 	defer internal.CloseDB()
 
-	// Créer le multiplexeur de routes
 	mux := http.NewServeMux()
 
-	// Routes publiques avec middleware optionnel (charge l'utilisateur s'il est connecté)
+	// Les pages publiques chargent quand même l'utilisateur pour adapter l'affichage.
 	mux.HandleFunc("GET /{$}", internal.LoadUserIfAuthenticated(internal.HomeHandler))
 	mux.HandleFunc("GET /register", internal.LoadUserIfAuthenticated(internal.RegisterPageHandler))
 	mux.HandleFunc("POST /register", internal.RegisterHandler)
@@ -27,24 +25,22 @@ func main() {
 	mux.HandleFunc("POST /login", internal.LoginHandler)
 	mux.HandleFunc("GET /logout", internal.LogoutHandler)
 
-	// Routes protégées (forum)
-	mux.HandleFunc("GET /forum", internal.RequireAuth(internal.ForumHandler))
+	// Le forum se lit sans compte, mais les actions d'écriture restent protégées.
+	mux.HandleFunc("GET /forum", internal.LoadUserIfAuthenticated(internal.ForumHandler))
 	mux.HandleFunc("GET /profile", internal.RequireAuth(internal.ProfileHandler))
 	mux.HandleFunc("POST /forum/post", internal.RequireAuth(internal.CreatePostHandler))
-	mux.HandleFunc("GET /forum/post/{id}", internal.RequireAuth(internal.TopicHandler))
+	mux.HandleFunc("GET /forum/post/{id}", internal.LoadUserIfAuthenticated(internal.TopicHandler))
+
 	mux.HandleFunc("POST /forum/post/{id}/reply", internal.RequireAuth(internal.CreateReplyHandler))
 	mux.HandleFunc("POST /forum/post/{id}/vote", internal.RequireAuth(internal.VoteTopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/comments/{commentID}/vote", internal.RequireAuth(internal.VoteCommentHandler))
 
-	// Servir les fichiers statiques
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
-	// Page 404 pour toutes les routes non déclarées
 	mux.HandleFunc("/", internal.NotFoundHandler)
 
-	// Démarrer le serveur
-	adresse := "localhost:8080"
-	fmt.Printf("🚀 Serveur démarré sur http://%s\n", adresse)
+	adresse := ":8080"
+	fmt.Println("🚀 Serveur démarré sur http://localhost:8080")
 	fmt.Println("Appuyez sur Ctrl+C pour arrêter")
 
 	err = http.ListenAndServe(adresse, internal.RecoveryMiddleware(mux))

@@ -7,44 +7,67 @@
 </div>
 
 <div class="card">
-    <h2>Créer un nouveau sujet</h2>
-    
-    <form method="POST" action="/forum/post">
-        <div class="form-group">
-            <label for="category_id">Catégorie</label>
-            <select id="category_id" name="category_id" required>
-                <option value="">Choisir une catégorie</option>
-                {{range .Categories}}
-                    <option value="{{.ID}}" {{if eq $.SelectedCategoryID .ID}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-            </select>
-        </div>
+    {{if .IsLoggedIn}}
+        <h2>Créer un nouveau sujet</h2>
+        
+        <form method="POST" action="/forum/post">
+            <div class="form-group">
+                <label for="category_id">Catégorie</label>
+                <select id="category_id" name="category_id" required>
+                    <option value="">Choisir une catégorie</option>
+                    {{range .Categories}}
+                        <option value="{{.ID}}" {{if eq $.SelectedCategoryID .ID}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="title">Titre</label>
-            <input type="text" id="title" name="title" value="{{index .FormValues "title"}}" required minlength="3" maxlength="120" placeholder="Entrez le titre de votre sujet">
-        </div>
-        
-        <div class="form-group">
-            <label for="content">Message</label>
-            <textarea id="content" name="content" required minlength="10" maxlength="5000" placeholder="Écrivez votre message ici...">{{index .FormValues "content"}}</textarea>
-        </div>
-        
-        <button type="submit">Publier</button>
-    </form>
+            <div class="form-group">
+                <label for="title">Titre</label>
+                <input type="text" id="title" name="title" value="{{index .FormValues "title"}}" required minlength="3" maxlength="120" placeholder="Entrez le titre de votre sujet">
+            </div>
+
+            <div class="form-group">
+                <label for="content">Message</label>
+                <textarea id="content" name="content" required minlength="10" maxlength="5000" placeholder="Écrivez votre message ici...">{{index .FormValues "content"}}</textarea>
+            </div>
+
+            <button type="submit">Publier</button>
+        </form>
+    {{else}}
+        <h2>Participer au forum</h2>
+        <p class="topic-meta">
+            <a href="/login">Connecte-toi pour répondre ou voter</a>.
+        </p>
+    {{end}}
 </div>
 
 <div class="card">
-    <h2>Filtrer par catégorie</h2>
+    <h2>Filtres</h2>
     <div class="category-filter">
-        <a class="category-link {{if not .SelectedCategoryID}}active{{end}}" href="/forum">Toutes</a>
+        <a class="category-link {{if and (eq .ActiveFilter "all") (not .SelectedCategoryID)}}active{{end}}" href="/forum">Tous les sujets</a>
+        {{if .IsLoggedIn}}
+            <a class="category-link {{if eq .ActiveFilter "mine"}}active{{end}}" href="/forum?filter=mine">Mes sujets</a>
+            <a class="category-link {{if eq .ActiveFilter "liked"}}active{{end}}" href="/forum?filter=liked">Sujets likés</a>
+        {{else}}
+            <a class="category-link" href="/login">Mes sujets</a>
+            <a class="category-link" href="/login">Sujets likés</a>
+        {{end}}
+    </div>
+
+    <h2 class="mt-2">Catégories</h2>
+    <div class="category-filter">
+        <a class="category-link {{if and (eq .ActiveFilter "all") (not .SelectedCategoryID)}}active{{end}}" href="/forum">Toutes</a>
         {{range .Categories}}
             <a class="category-link {{if eq $.SelectedCategoryID .ID}}active{{end}}" href="/forum?category={{.ID}}">{{.Name}}</a>
         {{end}}
     </div>
 </div>
 
-{{if .SelectedCategoryName}}
+{{if eq .ActiveFilter "mine"}}
+    <h2 class="section-title">Mes sujets</h2>
+{{else if eq .ActiveFilter "liked"}}
+    <h2 class="section-title">Sujets likés</h2>
+{{else if .SelectedCategoryName}}
     <h2 class="section-title">Sujets dans {{.SelectedCategoryName}}</h2>
 {{else}}
     <h2 class="section-title">Les derniers sujets</h2>
@@ -65,20 +88,26 @@
         
         <div class="post-title"><a href="/forum/post/{{.ID}}">{{.Title}}</a></div>
         <div class="post-content">{{.Content}}</div>
-        <div class="vote-actions">
-            <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
-                <input type="hidden" name="vote" value="like">
-                <button type="submit" class="vote-button {{if eq .UserVote "like"}}active{{end}}">
-                    J'aime ({{.Likes}})
-                </button>
-            </form>
-            <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
-                <input type="hidden" name="vote" value="dislike">
-                <button type="submit" class="vote-button {{if eq .UserVote "dislike"}}active{{end}}">
-                    Je n'aime pas ({{.Dislikes}})
-                </button>
-            </form>
-        </div>
+        {{if $.IsLoggedIn}}
+            <div class="vote-actions">
+                <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
+                    <input type="hidden" name="vote" value="like">
+                    <button type="submit" class="vote-button {{if eq .UserVote "like"}}active{{end}}">
+                        J'aime ({{.Likes}})
+                    </button>
+                </form>
+                <form method="POST" action="/forum/post/{{.ID}}/vote" class="vote-form">
+                    <input type="hidden" name="vote" value="dislike">
+                    <button type="submit" class="vote-button {{if eq .UserVote "dislike"}}active{{end}}">
+                        Je n'aime pas ({{.Dislikes}})
+                    </button>
+                </form>
+            </div>
+        {{else}}
+            <p class="topic-meta mt-2">
+                <a href="/login">Connecte-toi pour répondre ou voter</a>.
+            </p>
+        {{end}}
         
         {{if .Comments}}
             <div class="topic-stats">
@@ -96,18 +125,24 @@
             {{end}}
         {{end}}
         
-        <form method="POST" action="/forum/post/{{.ID}}/reply" class="reply-form">
-            <div class="form-group">
-                <label for="content-{{.ID}}">Commenter</label>
-                <textarea id="content-{{.ID}}" name="content" class="compact-textarea" required maxlength="2000" placeholder="Votre commentaire..."></textarea>
-            </div>
-            <button type="submit">Envoyer le commentaire</button>
-        </form>
+        {{if $.IsLoggedIn}}
+            <form method="POST" action="/forum/post/{{.ID}}/reply" class="reply-form">
+                <div class="form-group">
+                    <label for="content-{{.ID}}">Commenter</label>
+                    <textarea id="content-{{.ID}}" name="content" class="compact-textarea" required maxlength="2000" placeholder="Votre commentaire..."></textarea>
+                </div>
+                <button type="submit">Envoyer le commentaire</button>
+            </form>
+        {{end}}
     </article>
     {{end}}
 {{else}}
     <div class="card center">
-        {{if .SelectedCategoryName}}
+        {{if eq .ActiveFilter "mine"}}
+            <p class="topic-meta">Vous n'avez créé aucun sujet pour le moment.</p>
+        {{else if eq .ActiveFilter "liked"}}
+            <p class="topic-meta">Vous n'avez liké aucun sujet pour le moment.</p>
+        {{else if .SelectedCategoryName}}
             <p class="topic-meta">Aucun sujet dans cette catégorie pour le moment.</p>
         {{else}}
             <p class="topic-meta">Aucun sujet pour le moment. Soyez le premier à créer un sujet.</p>

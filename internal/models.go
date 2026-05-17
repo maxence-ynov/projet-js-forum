@@ -2,9 +2,7 @@ package internal
 
 import "time"
 
-// ============= MODELS =============
-
-// User représente un utilisateur du forum
+// User représente un utilisateur du forum.
 type User struct {
 	ID        string    `db:"id"`
 	Username  string    `db:"username"`
@@ -13,7 +11,7 @@ type User struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
-// Session représente une session utilisateur
+// Session représente une session utilisateur.
 type Session struct {
 	ID        string    `db:"id"`
 	UserID    string    `db:"user_id"`
@@ -22,7 +20,7 @@ type Session struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
-// Category représente une catégorie du forum
+// Category représente une catégorie du forum.
 type Category struct {
 	ID          string    `db:"id"`
 	Name        string    `db:"name"`
@@ -30,48 +28,39 @@ type Category struct {
 	CreatedAt   time.Time `db:"created_at"`
 }
 
-// Topic représente un sujet du forum
+// Topic représente un sujet du forum.
 type Topic struct {
 	ID           string    `db:"id"`
 	CategoryID   string    `db:"category_id"`
-	CategoryName string    // Pour l'affichage du nom de catégorie
+	CategoryName string    // Nom de catégorie affiché dans les templates
 	UserID       string    `db:"user_id"`
-	Username     string    // Pour l'affichage du nom d'auteur
+	Username     string    // Nom d'auteur affiché dans les templates
 	Title        string    `db:"title"`
 	Content      string    `db:"content"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
-	Comments     []Comment // Les commentaires du topic
+	Comments     []Comment // Commentaires chargés pour la page du sujet
 	CommentCount int       // Nombre de commentaires
 	Likes        int       // Nombre de likes
 	Dislikes     int       // Nombre de dislikes
-	UserVote     string    // Vote de l'utilisateur connecté: "like", "dislike" ou ""
+	UserVote     string    // Vote de l'utilisateur connecté: "like", "dislike" ou vide
 }
 
-// Comment représente un commentaire sur un topic
+// Comment représente un commentaire sur un sujet.
 type Comment struct {
 	ID        string    `db:"id"`
 	TopicID   string    `db:"topic_id"`
 	UserID    string    `db:"user_id"`
-	Username  string    // Pour l'affichage du nom d'auteur
+	Username  string    // Nom d'auteur affiché dans les templates
 	Content   string    `db:"content"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 	Likes     int       // Nombre de likes
 	Dislikes  int       // Nombre de dislikes
-	UserVote  string    // Vote de l'utilisateur connecté: "like", "dislike" ou ""
+	UserVote  string    // Vote de l'utilisateur connecté: "like", "dislike" ou vide
 }
 
-// Like représente un like pour un topic ou commentaire
-type Like struct {
-	ID        string    `db:"id"`
-	UserID    string    `db:"user_id"`
-	TopicID   *string   `db:"topic_id"`   // NULL si like sur un commentaire
-	CommentID *string   `db:"comment_id"` // NULL si like sur un topic
-	CreatedAt time.Time `db:"created_at"`
-}
-
-// Vote représente un vote unique pour un topic ou commentaire
+// Vote représente un vote unique pour un sujet ou commentaire.
 type Vote struct {
 	ID         string    `db:"id"`
 	UserID     string    `db:"user_id"`
@@ -82,7 +71,7 @@ type Vote struct {
 	UpdatedAt  time.Time `db:"updated_at"`
 }
 
-// PageData est utilisé pour passer les données aux templates
+// PageData regroupe les données envoyées aux templates.
 type PageData struct {
 	IsLoggedIn           bool
 	User                 *User
@@ -94,7 +83,8 @@ type PageData struct {
 	Comments             []Comment
 	SelectedCategoryID   string
 	SelectedCategoryName string
-	Message              string // Pour afficher des messages de succès/erreur
+	ActiveFilter         string
+	Message              string // Message affiché après une erreur de formulaire
 	FormValues           map[string]string
 	StatusCode           int
 	ErrorTitle           string
