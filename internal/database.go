@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -83,6 +84,11 @@ func createAllTables() error {
 
 	// Table dislikes
 	if err := createDislikesTable(); err != nil {
+		return err
+	}
+
+	// Table votes
+	if err := createVotesTable(); err != nil {
 		return err
 	}
 
@@ -210,6 +216,25 @@ func createDislikesTable() error {
 		FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
 		FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
 		UNIQUE(user_id, topic_id, comment_id)
+	);
+	`
+	_, err := DB.Exec(query)
+	return err
+}
+
+// createVotesTable crée la table des votes avec un seul vote par utilisateur et cible.
+func createVotesTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS votes (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		target_type TEXT NOT NULL CHECK(target_type IN ('topic', 'comment')),
+		target_id TEXT NOT NULL,
+		vote_type TEXT NOT NULL CHECK(vote_type IN ('like', 'dislike')),
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+		UNIQUE(user_id, target_type, target_id)
 	);
 	`
 	_, err := DB.Exec(query)
@@ -429,13 +454,13 @@ func CreateTopic(topic *Topic) error {
 func GetAllTopics() ([]Topic, error) {
 	query := `
 		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
-		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
-		LEFT JOIN comments co ON co.topic_id = t.id
-		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
-		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.updated_at DESC
 	`
 
@@ -451,7 +476,7 @@ func GetAllTopics() ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
-			&topic.CommentCount,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan topic: %w", err)
@@ -466,13 +491,13 @@ func GetAllTopics() ([]Topic, error) {
 func GetLatestTopics(limit int) ([]Topic, error) {
 	query := `
 		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
-		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
-		LEFT JOIN comments co ON co.topic_id = t.id
-		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
-		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.created_at DESC
 		LIMIT ?
 	`
@@ -489,7 +514,7 @@ func GetLatestTopics(limit int) ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
-			&topic.CommentCount,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan dernier topic: %w", err)
@@ -504,14 +529,14 @@ func GetLatestTopics(limit int) ([]Topic, error) {
 func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 	query := `
 		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
-		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
-		LEFT JOIN comments co ON co.topic_id = t.id
 		WHERE t.category_id = ?
-		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
-		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.updated_at DESC
 	`
 
@@ -527,7 +552,7 @@ func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
-			&topic.CommentCount,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan topic: %w", err)
@@ -542,14 +567,14 @@ func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 func GetLatestTopicsByCategory(categoryID string, limit int) ([]Topic, error) {
 	query := `
 		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
-		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
-		LEFT JOIN comments co ON co.topic_id = t.id
 		WHERE t.category_id = ?
-		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
-		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.created_at DESC
 		LIMIT ?
 	`
@@ -566,7 +591,7 @@ func GetLatestTopicsByCategory(categoryID string, limit int) ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
-			&topic.CommentCount,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan dernier topic par catégorie: %w", err)
@@ -582,7 +607,10 @@ func GetTopicByID(id string) (*Topic, error) {
 	topic := &Topic{}
 	query := `
 		SELECT t.id, t.category_id, t.user_id, t.title, t.content, 
-		       t.created_at, t.updated_at, u.username, c.name
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
@@ -592,6 +620,7 @@ func GetTopicByID(id string) (*Topic, error) {
 	err := DB.QueryRow(query, id).Scan(
 		&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 		&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+		&topic.CommentCount, &topic.Likes, &topic.Dislikes,
 	)
 
 	if err != nil {
@@ -621,7 +650,9 @@ func CreateComment(comment *Comment) error {
 // GetCommentsByTopic récupère tous les commentaires d'un topic
 func GetCommentsByTopic(topicID string) ([]Comment, error) {
 	query := `
-		SELECT c.id, c.topic_id, c.user_id, c.content, c.created_at, c.updated_at, u.username
+		SELECT c.id, c.topic_id, c.user_id, c.content, c.created_at, c.updated_at, u.username,
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'comment' AND v.target_id = c.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'comment' AND v.target_id = c.id AND v.vote_type = 'dislike')
 		FROM comments c
 		JOIN users u ON c.user_id = u.id
 		WHERE c.topic_id = ?
@@ -640,6 +671,7 @@ func GetCommentsByTopic(topicID string) ([]Comment, error) {
 		err := rows.Scan(
 			&comment.ID, &comment.TopicID, &comment.UserID, &comment.Content,
 			&comment.CreatedAt, &comment.UpdatedAt, &comment.Username,
+			&comment.Likes, &comment.Dislikes,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan commentaire: %w", err)
@@ -654,7 +686,9 @@ func GetCommentsByTopic(topicID string) ([]Comment, error) {
 func GetCommentByID(id string) (*Comment, error) {
 	comment := &Comment{}
 	query := `
-		SELECT c.id, c.topic_id, c.user_id, c.content, c.created_at, c.updated_at, u.username
+		SELECT c.id, c.topic_id, c.user_id, c.content, c.created_at, c.updated_at, u.username,
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'comment' AND v.target_id = c.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'comment' AND v.target_id = c.id AND v.vote_type = 'dislike')
 		FROM comments c
 		JOIN users u ON c.user_id = u.id
 		WHERE c.id = ?
@@ -663,6 +697,7 @@ func GetCommentByID(id string) (*Comment, error) {
 	err := DB.QueryRow(query, id).Scan(
 		&comment.ID, &comment.TopicID, &comment.UserID, &comment.Content,
 		&comment.CreatedAt, &comment.UpdatedAt, &comment.Username,
+		&comment.Likes, &comment.Dislikes,
 	)
 
 	if err != nil {
@@ -704,7 +739,7 @@ func DeleteLike(id string) error {
 // GetLikesByTopic récupère le nombre de likes pour un topic
 func GetLikesByTopic(topicID string) (int, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM likes WHERE topic_id = ? AND comment_id IS NULL"
+	query := "SELECT COUNT(*) FROM votes WHERE target_type = 'topic' AND target_id = ? AND vote_type = 'like'"
 
 	err := DB.QueryRow(query, topicID).Scan(&count)
 	if err != nil {
@@ -717,7 +752,7 @@ func GetLikesByTopic(topicID string) (int, error) {
 // GetLikesByComment récupère le nombre de likes pour un commentaire
 func GetLikesByComment(commentID string) (int, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM likes WHERE comment_id = ?"
+	query := "SELECT COUNT(*) FROM votes WHERE target_type = 'comment' AND target_id = ? AND vote_type = 'like'"
 
 	err := DB.QueryRow(query, commentID).Scan(&count)
 	if err != nil {
@@ -730,7 +765,7 @@ func GetLikesByComment(commentID string) (int, error) {
 // GetDislikesByTopic récupère le nombre de dislikes pour un topic.
 func GetDislikesByTopic(topicID string) (int, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM dislikes WHERE topic_id = ? AND comment_id IS NULL"
+	query := "SELECT COUNT(*) FROM votes WHERE target_type = 'topic' AND target_id = ? AND vote_type = 'dislike'"
 
 	err := DB.QueryRow(query, topicID).Scan(&count)
 	if err != nil {
@@ -743,7 +778,7 @@ func GetDislikesByTopic(topicID string) (int, error) {
 // GetDislikesByComment récupère le nombre de dislikes pour un commentaire.
 func GetDislikesByComment(commentID string) (int, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM dislikes WHERE comment_id = ?"
+	query := "SELECT COUNT(*) FROM votes WHERE target_type = 'comment' AND target_id = ? AND vote_type = 'dislike'"
 
 	err := DB.QueryRow(query, commentID).Scan(&count)
 	if err != nil {
@@ -756,7 +791,7 @@ func GetDislikesByComment(commentID string) (int, error) {
 // UserLikedTopic vérifie si un utilisateur a aimé un topic
 func UserLikedTopic(userID, topicID string) (bool, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM likes WHERE user_id = ? AND topic_id = ? AND comment_id IS NULL"
+	query := "SELECT COUNT(*) FROM votes WHERE user_id = ? AND target_type = 'topic' AND target_id = ? AND vote_type = 'like'"
 
 	err := DB.QueryRow(query, userID, topicID).Scan(&count)
 	if err != nil {
@@ -769,7 +804,7 @@ func UserLikedTopic(userID, topicID string) (bool, error) {
 // UserLikedComment vérifie si un utilisateur a aimé un commentaire
 func UserLikedComment(userID, commentID string) (bool, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM likes WHERE user_id = ? AND comment_id = ?"
+	query := "SELECT COUNT(*) FROM votes WHERE user_id = ? AND target_type = 'comment' AND target_id = ? AND vote_type = 'like'"
 
 	err := DB.QueryRow(query, userID, commentID).Scan(&count)
 	if err != nil {
@@ -777,4 +812,48 @@ func UserLikedComment(userID, commentID string) (bool, error) {
 	}
 
 	return count > 0, nil
+}
+
+// GetUserVote récupère le vote actuel d'un utilisateur pour une cible.
+func GetUserVote(userID, targetType, targetID string) (string, error) {
+	var voteType string
+	query := `
+		SELECT vote_type
+		FROM votes
+		WHERE user_id = ? AND target_type = ? AND target_id = ?
+	`
+
+	err := DB.QueryRow(query, userID, targetType, targetID).Scan(&voteType)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("erreur récupération vote utilisateur: %w", err)
+	}
+
+	return voteType, nil
+}
+
+// SetVote crée ou remplace le vote d'un utilisateur pour une cible.
+func SetVote(userID, targetType, targetID, voteType string) error {
+	if targetType != "topic" && targetType != "comment" {
+		return fmt.Errorf("type de cible invalide")
+	}
+	if voteType != "like" && voteType != "dislike" {
+		return fmt.Errorf("type de vote invalide")
+	}
+
+	query := `
+		INSERT INTO votes (id, user_id, target_type, target_id, vote_type)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(user_id, target_type, target_id)
+		DO UPDATE SET vote_type = excluded.vote_type, updated_at = CURRENT_TIMESTAMP
+	`
+
+	_, err := DB.Exec(query, uuid.New().String(), userID, targetType, targetID, voteType)
+	if err != nil {
+		return fmt.Errorf("erreur enregistrement vote: %w", err)
+	}
+
+	return nil
 }

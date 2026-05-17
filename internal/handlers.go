@@ -453,6 +453,23 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	topic.CommentCount = len(comments)
 	topic.Likes = likes
 	topic.Dislikes = dislikes
+	if user != nil {
+		topic.UserVote, err = GetUserVote(user.ID, "topic", topic.ID)
+		if err != nil {
+			log.Printf("Erreur récupération vote utilisateur sujet: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+
+		for i := range comments {
+			comments[i].UserVote, err = GetUserVote(user.ID, "comment", comments[i].ID)
+			if err != nil {
+				log.Printf("Erreur récupération vote utilisateur commentaire: %v", err)
+				http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 
 	data := PageData{
 		IsLoggedIn: user != nil,
@@ -487,9 +504,19 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 
 	content := strings.TrimSpace(r.FormValue("content"))
 
-	// Valider le contenu
+	topic, err := GetTopicByID(topicID)
+	if err != nil {
+		log.Printf("Erreur récupération sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if topic == nil {
+		http.NotFound(w, r)
+		return
+	}
+
 	if content == "" {
-		http.Redirect(w, r, "/forum", http.StatusSeeOther)
+		renderTopicWithMessage(w, r, topic, "Le commentaire ne peut pas être vide")
 		return
 	}
 
@@ -509,6 +536,185 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/forum/post/"+topicID, http.StatusSeeOther)
+}
+
+// VoteTopicHandler enregistre un like ou dislike sur un sujet.
+func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
+	user := GetUserFromRequest(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	topicID := r.PathValue("id")
+	if topicID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	topic, err := GetTopicByID(topicID)
+	if err != nil {
+		log.Printf("Erreur récupération sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if topic == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	err = r.ParseForm()
+	if err != nil {
+		http.Error(w, "Erreur de traitement du formulaire", http.StatusBadRequest)
+		return
+	}
+
+	voteType := strings.TrimSpace(r.FormValue("vote"))
+	if voteType != "like" && voteType != "dislike" {
+		http.Error(w, "Vote invalide", http.StatusBadRequest)
+		return
+	}
+
+	err = SetVote(user.ID, "topic", topic.ID, voteType)
+	if err != nil {
+		log.Printf("Erreur enregistrement vote sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/forum/post/"+topic.ID, http.StatusSeeOther)
+}
+
+// VoteCommentHandler enregistre un like ou dislike sur un commentaire.
+func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	user := GetUserFromRequest(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	topicID := r.PathValue("id")
+	commentID := r.PathValue("commentID")
+	if topicID == "" || commentID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	topic, err := GetTopicByID(topicID)
+	if err != nil {
+		log.Printf("Erreur récupération sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if topic == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	comment, err := GetCommentByID(commentID)
+	if err != nil {
+		log.Printf("Erreur récupération commentaire: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if comment == nil || comment.TopicID != topic.ID {
+		http.NotFound(w, r)
+		return
+	}
+
+	err = r.ParseForm()
+	if err != nil {
+		http.Error(w, "Erreur de traitement du formulaire", http.StatusBadRequest)
+		return
+	}
+
+	voteType := strings.TrimSpace(r.FormValue("vote"))
+	if voteType != "like" && voteType != "dislike" {
+		http.Error(w, "Vote invalide", http.StatusBadRequest)
+		return
+	}
+
+	err = SetVote(user.ID, "comment", comment.ID, voteType)
+	if err != nil {
+		log.Printf("Erreur enregistrement vote commentaire: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/forum/post/"+topic.ID, http.StatusSeeOther)
+}
+
+func renderTopicWithMessage(w http.ResponseWriter, r *http.Request, topic *Topic, message string) {
+	user := GetUserFromRequest(r)
+
+	comments, err := GetCommentsByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération commentaires: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	likes, err := GetLikesByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération likes sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	dislikes, err := GetDislikesByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération dislikes sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	for i := range comments {
+		comments[i].Likes, err = GetLikesByComment(comments[i].ID)
+		if err != nil {
+			log.Printf("Erreur récupération likes commentaire: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+
+		comments[i].Dislikes, err = GetDislikesByComment(comments[i].ID)
+		if err != nil {
+			log.Printf("Erreur récupération dislikes commentaire: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	topic.Comments = comments
+	topic.CommentCount = len(comments)
+	topic.Likes = likes
+	topic.Dislikes = dislikes
+	if user != nil {
+		topic.UserVote, err = GetUserVote(user.ID, "topic", topic.ID)
+		if err != nil {
+			log.Printf("Erreur récupération vote utilisateur sujet: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+
+		for i := range comments {
+			comments[i].UserVote, err = GetUserVote(user.ID, "comment", comments[i].ID)
+			if err != nil {
+				log.Printf("Erreur récupération vote utilisateur commentaire: %v", err)
+				http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	data := PageData{
+		IsLoggedIn: user != nil,
+		User:       user,
+		Topic:      topic,
+		Comments:   comments,
+		Message:    message,
+	}
+
+	renderTemplate(w, "layout.html", "topic.html", data)
 }
 
 func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message, selectedCategoryID string) {

@@ -50,7 +50,9 @@
             <span>
                 <span class="topic-category">{{.CategoryName}}</span>
                 <strong>{{.Username}}</strong> - 
-                {{.CreatedAt.Format "02/01/2006 15:04"}}
+                {{.CreatedAt.Format "02/01/2006 15:04"}} -
+                {{.Likes}} like(s) -
+                {{.Dislikes}} dislike(s)
             </span>
         </div>
         

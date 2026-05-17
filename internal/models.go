@@ -45,6 +45,7 @@ type Topic struct {
 	CommentCount int       // Nombre de commentaires
 	Likes        int       // Nombre de likes
 	Dislikes     int       // Nombre de dislikes
+	UserVote     string    // Vote de l'utilisateur connecté: "like", "dislike" ou ""
 }
 
 // Comment représente un commentaire sur un topic
@@ -58,6 +59,7 @@ type Comment struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	Likes     int       // Nombre de likes
 	Dislikes  int       // Nombre de dislikes
+	UserVote  string    // Vote de l'utilisateur connecté: "like", "dislike" ou ""
 }
 
 // Like représente un like pour un topic ou commentaire
@@ -67,6 +69,17 @@ type Like struct {
 	TopicID   *string   `db:"topic_id"`   // NULL si like sur un commentaire
 	CommentID *string   `db:"comment_id"` // NULL si like sur un topic
 	CreatedAt time.Time `db:"created_at"`
+}
+
+// Vote représente un vote unique pour un topic ou commentaire
+type Vote struct {
+	ID         string    `db:"id"`
+	UserID     string    `db:"user_id"`
+	TargetType string    `db:"target_type"`
+	TargetID   string    `db:"target_id"`
+	VoteType   string    `db:"vote_type"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 // PageData est utilisé pour passer les données aux templates

@@ -30,8 +30,10 @@ func main() {
 	// Routes protégées (forum)
 	mux.HandleFunc("GET /forum", internal.RequireAuth(internal.ForumHandler))
 	mux.HandleFunc("POST /forum/post", internal.RequireAuth(internal.CreatePostHandler))
-	mux.HandleFunc("GET /forum/post/{id}", internal.RequireAuth(internal.TopicHandler))
+	mux.HandleFunc("GET /forum/post/{id}", internal.LoadUserIfAuthenticated(internal.TopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/reply", internal.RequireAuth(internal.CreateReplyHandler))
+	mux.HandleFunc("POST /forum/post/{id}/vote", internal.RequireAuth(internal.VoteTopicHandler))
+	mux.HandleFunc("POST /forum/post/{id}/comments/{commentID}/vote", internal.RequireAuth(internal.VoteCommentHandler))
 
 	// Servir les fichiers statiques
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

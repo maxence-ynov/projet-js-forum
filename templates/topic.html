@@ -20,6 +20,27 @@
         {{.Topic.Dislikes}} dislike(s)
     </p>
 
+    {{if .IsLoggedIn}}
+        <div class="vote-actions">
+            <form method="POST" action="/forum/post/{{.Topic.ID}}/vote" class="vote-form">
+                <input type="hidden" name="vote" value="like">
+                <button type="submit" class="vote-button {{if eq .Topic.UserVote "like"}}active{{end}}">
+                    Like ({{.Topic.Likes}})
+                </button>
+            </form>
+            <form method="POST" action="/forum/post/{{.Topic.ID}}/vote" class="vote-form">
+                <input type="hidden" name="vote" value="dislike">
+                <button type="submit" class="vote-button {{if eq .Topic.UserVote "dislike"}}active{{end}}">
+                    Dislike ({{.Topic.Dislikes}})
+                </button>
+            </form>
+        </div>
+    {{else}}
+        <p class="topic-meta mt-2">
+            <a href="/login">Connectez-vous</a> pour voter.
+        </p>
+    {{end}}
+
     <div class="post-content mt-2">
         {{.Topic.Content}}
     </div>
@@ -38,6 +59,22 @@
                 {{.Dislikes}} dislike(s)
             </div>
             <div>{{.Content}}</div>
+            {{if $.IsLoggedIn}}
+                <div class="vote-actions">
+                    <form method="POST" action="/forum/post/{{$.Topic.ID}}/comments/{{.ID}}/vote" class="vote-form">
+                        <input type="hidden" name="vote" value="like">
+                        <button type="submit" class="vote-button {{if eq .UserVote "like"}}active{{end}}">
+                            Like ({{.Likes}})
+                        </button>
+                    </form>
+                    <form method="POST" action="/forum/post/{{$.Topic.ID}}/comments/{{.ID}}/vote" class="vote-form">
+                        <input type="hidden" name="vote" value="dislike">
+                        <button type="submit" class="vote-button {{if eq .UserVote "dislike"}}active{{end}}">
+                            Dislike ({{.Dislikes}})
+                        </button>
+                    </form>
+                </div>
+            {{end}}
         </div>
         {{end}}
     {{else}}
@@ -47,13 +84,19 @@
 
 <div class="card">
     <h2>Ajouter un commentaire</h2>
-    <form method="POST" action="/forum/post/{{.Topic.ID}}/reply">
-        <div class="form-group">
-            <label for="content">Commentaire:</label>
-            <textarea id="content" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
-        </div>
-        <button type="submit">Envoyer le commentaire</button>
-    </form>
+    {{if .IsLoggedIn}}
+        <form method="POST" action="/forum/post/{{.Topic.ID}}/reply">
+            <div class="form-group">
+                <label for="content">Commentaire:</label>
+                <textarea id="content" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
+            </div>
+            <button type="submit">Envoyer le commentaire</button>
+        </form>
+    {{else}}
+        <p class="topic-meta">
+            <a href="/login">Connectez-vous</a> pour ajouter un commentaire.
+        </p>
+    {{end}}
 </div>
 {{end}}
 {{end}}
