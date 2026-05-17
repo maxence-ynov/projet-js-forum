@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -9,42 +10,27 @@ import (
 	"github.com/google/uuid"
 )
 
+var errNotFound = errors.New("ressource introuvable")
+
+type topicListMode int
+
+const (
+	allTopics topicListMode = iota
+	latestTopics
+)
+
 // HomeHandler affiche la page d'accueil
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
 	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
-	selectedCategoryName := ""
 
-	categories, err := GetAllCategories()
+	categories, topics, selectedCategoryName, err := loadCategoryTopics(selectedCategoryID, latestTopics, 10)
 	if err != nil {
-		log.Printf("Erreur récupération catégories: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	var topics []Topic
-	if selectedCategoryID != "" {
-		if !isValidCategoryID(selectedCategoryID) {
+		if errors.Is(err, errNotFound) {
 			NotFoundHandler(w, r)
 			return
 		}
-		category, err := GetCategoryByID(selectedCategoryID)
-		if err != nil {
-			log.Printf("Erreur récupération catégorie: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-		if category == nil {
-			NotFoundHandler(w, r)
-			return
-		}
-		selectedCategoryName = category.Name
-		topics, err = GetLatestTopicsByCategory(selectedCategoryID, 10)
-	} else {
-		topics, err = GetLatestTopics(10)
-	}
-	if err != nil {
-		log.Printf("Erreur récupération derniers sujets: %v", err)
+		log.Printf("Erreur récupération accueil: %v", err)
 		RenderServerError(w, r)
 		return
 	}
@@ -92,38 +78,22 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	passwordConfirm := r.FormValue("password_confirm")
 
 	if message := validateUsername(username); message != "" {
-		data := PageData{
-			Message:    message,
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", message, map[string]string{"username": username, "email": email})
 		return
 	}
 
 	if message := validateEmail(email); message != "" {
-		data := PageData{
-			Message:    message,
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", message, map[string]string{"username": username, "email": email})
 		return
 	}
 
 	if message := validatePassword(password); message != "" {
-		data := PageData{
-			Message:    message,
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", message, map[string]string{"username": username, "email": email})
 		return
 	}
 
 	if password != passwordConfirm {
-		data := PageData{
-			Message:    "Les mots de passe ne correspondent pas",
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", "Les mots de passe ne correspondent pas", map[string]string{"username": username, "email": email})
 		return
 	}
 
@@ -136,11 +106,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if existingUser != nil {
-		data := PageData{
-			Message:    "Ce nom d'utilisateur est déjà pris",
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", "Ce nom d'utilisateur est déjà pris", map[string]string{"username": username, "email": email})
 		return
 	}
 
@@ -153,11 +119,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if existingEmail != nil {
-		data := PageData{
-			Message:    "Cet email est déjà utilisé",
-			FormValues: formValues(map[string]string{"username": username, "email": email}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "register.html", data)
+		renderAuthFormError(w, "register.html", "Cet email est déjà utilisé", map[string]string{"username": username, "email": email})
 		return
 	}
 
@@ -226,19 +188,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Valider les données
 	if username == "" || password == "" {
-		data := PageData{
-			Message:    "Tous les champs sont obligatoires",
-			FormValues: formValues(map[string]string{"username": username}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "login.html", data)
+		renderAuthFormError(w, "login.html", "Tous les champs sont obligatoires", map[string]string{"username": username})
 		return
 	}
 	if utf8.RuneCountInString(username) > maxUsernameLength || len(password) > maxPasswordLength {
-		data := PageData{
-			Message:    "Identifiant ou mot de passe incorrect",
-			FormValues: formValues(map[string]string{"username": username}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "login.html", data)
+		renderAuthFormError(w, "login.html", "Identifiant ou mot de passe incorrect", map[string]string{"username": username})
 		return
 	}
 
@@ -251,21 +205,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		data := PageData{
-			Message:    "Identifiant ou mot de passe incorrect",
-			FormValues: formValues(map[string]string{"username": username}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "login.html", data)
+		renderAuthFormError(w, "login.html", "Identifiant ou mot de passe incorrect", map[string]string{"username": username})
 		return
 	}
 
 	// Vérifier le mot de passe
 	if !VerifyPassword(user.Password, password) {
-		data := PageData{
-			Message:    "Identifiant ou mot de passe incorrect",
-			FormValues: formValues(map[string]string{"username": username}),
-		}
-		renderFormError(w, http.StatusUnprocessableEntity, "login.html", data)
+		renderAuthFormError(w, "login.html", "Identifiant ou mot de passe incorrect", map[string]string{"username": username})
 		return
 	}
 
@@ -291,38 +237,14 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func ForumHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
-	selectedCategoryName := ""
 
-	categories, err := GetAllCategories()
+	categories, topics, selectedCategoryName, err := loadCategoryTopics(selectedCategoryID, allTopics, 0)
 	if err != nil {
-		log.Printf("Erreur récupération catégories: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	var topics []Topic
-	if selectedCategoryID != "" {
-		if !isValidCategoryID(selectedCategoryID) {
+		if errors.Is(err, errNotFound) {
 			NotFoundHandler(w, r)
 			return
 		}
-		category, err := GetCategoryByID(selectedCategoryID)
-		if err != nil {
-			log.Printf("Erreur récupération catégorie: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-		if category == nil {
-			NotFoundHandler(w, r)
-			return
-		}
-		selectedCategoryName = category.Name
-		topics, err = GetTopicsByCategory(selectedCategoryID)
-	} else {
-		topics, err = GetAllTopics()
-	}
-	if err != nil {
-		log.Printf("Erreur récupération sujets: %v", err)
+		log.Printf("Erreur récupération forum: %v", err)
 		RenderServerError(w, r)
 		return
 	}
@@ -455,63 +377,11 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	comments, err := GetCommentsByTopic(topic.ID)
+	comments, err := fillTopicDetails(topic, user)
 	if err != nil {
-		log.Printf("Erreur récupération commentaires: %v", err)
+		log.Printf("Erreur préparation page sujet: %v", err)
 		RenderServerError(w, r)
 		return
-	}
-
-	likes, err := GetLikesByTopic(topic.ID)
-	if err != nil {
-		log.Printf("Erreur récupération likes sujet: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	dislikes, err := GetDislikesByTopic(topic.ID)
-	if err != nil {
-		log.Printf("Erreur récupération dislikes sujet: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	for i := range comments {
-		comments[i].Likes, err = GetLikesByComment(comments[i].ID)
-		if err != nil {
-			log.Printf("Erreur récupération likes commentaire: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-
-		comments[i].Dislikes, err = GetDislikesByComment(comments[i].ID)
-		if err != nil {
-			log.Printf("Erreur récupération dislikes commentaire: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-	}
-
-	topic.Comments = comments
-	topic.CommentCount = len(comments)
-	topic.Likes = likes
-	topic.Dislikes = dislikes
-	if user != nil {
-		topic.UserVote, err = GetUserVote(user.ID, "topic", topic.ID)
-		if err != nil {
-			log.Printf("Erreur récupération vote utilisateur sujet: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-
-		for i := range comments {
-			comments[i].UserVote, err = GetUserVote(user.ID, "comment", comments[i].ID)
-			if err != nil {
-				log.Printf("Erreur récupération vote utilisateur commentaire: %v", err)
-				RenderServerError(w, r)
-				return
-			}
-		}
 	}
 
 	data := PageData{
@@ -612,8 +482,8 @@ func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	voteType := strings.TrimSpace(r.FormValue("vote"))
-	if voteType != "like" && voteType != "dislike" {
+	voteType, ok := readVoteType(r)
+	if !ok {
 		RenderBadRequest(w, r, "Le vote envoyé est invalide.")
 		return
 	}
@@ -671,8 +541,8 @@ func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	voteType := strings.TrimSpace(r.FormValue("vote"))
-	if voteType != "like" && voteType != "dislike" {
+	voteType, ok := readVoteType(r)
+	if !ok {
 		RenderBadRequest(w, r, "Le vote envoyé est invalide.")
 		return
 	}
@@ -690,63 +560,11 @@ func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 func renderTopicWithMessage(w http.ResponseWriter, r *http.Request, topic *Topic, message string) {
 	user := GetUserFromRequest(r)
 
-	comments, err := GetCommentsByTopic(topic.ID)
+	comments, err := fillTopicDetails(topic, user)
 	if err != nil {
-		log.Printf("Erreur récupération commentaires: %v", err)
+		log.Printf("Erreur préparation page sujet: %v", err)
 		RenderServerError(w, r)
 		return
-	}
-
-	likes, err := GetLikesByTopic(topic.ID)
-	if err != nil {
-		log.Printf("Erreur récupération likes sujet: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	dislikes, err := GetDislikesByTopic(topic.ID)
-	if err != nil {
-		log.Printf("Erreur récupération dislikes sujet: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	for i := range comments {
-		comments[i].Likes, err = GetLikesByComment(comments[i].ID)
-		if err != nil {
-			log.Printf("Erreur récupération likes commentaire: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-
-		comments[i].Dislikes, err = GetDislikesByComment(comments[i].ID)
-		if err != nil {
-			log.Printf("Erreur récupération dislikes commentaire: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-	}
-
-	topic.Comments = comments
-	topic.CommentCount = len(comments)
-	topic.Likes = likes
-	topic.Dislikes = dislikes
-	if user != nil {
-		topic.UserVote, err = GetUserVote(user.ID, "topic", topic.ID)
-		if err != nil {
-			log.Printf("Erreur récupération vote utilisateur sujet: %v", err)
-			RenderServerError(w, r)
-			return
-		}
-
-		for i := range comments {
-			comments[i].UserVote, err = GetUserVote(user.ID, "comment", comments[i].ID)
-			if err != nil {
-				log.Printf("Erreur récupération vote utilisateur commentaire: %v", err)
-				RenderServerError(w, r)
-				return
-			}
-		}
 	}
 
 	data := PageData{
@@ -763,16 +581,9 @@ func renderTopicWithMessage(w http.ResponseWriter, r *http.Request, topic *Topic
 func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message, selectedCategoryID string) {
 	user := GetUserFromRequest(r)
 
-	categories, err := GetAllCategories()
+	categories, topics, _, err := loadCategoryTopics("", allTopics, 0)
 	if err != nil {
-		log.Printf("Erreur récupération catégories: %v", err)
-		RenderServerError(w, r)
-		return
-	}
-
-	topics, err := GetAllTopics()
-	if err != nil {
-		log.Printf("Erreur récupération sujets: %v", err)
+		log.Printf("Erreur récupération formulaire forum: %v", err)
 		RenderServerError(w, r)
 		return
 	}
@@ -791,6 +602,89 @@ func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message,
 	}
 
 	renderFormError(w, http.StatusUnprocessableEntity, "forum.html", data)
+}
+
+func loadCategoryTopics(selectedCategoryID string, mode topicListMode, limit int) ([]Category, []Topic, string, error) {
+	categories, err := GetAllCategories()
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	if selectedCategoryID != "" {
+		if !isValidCategoryID(selectedCategoryID) {
+			return nil, nil, "", errNotFound
+		}
+
+		category, err := GetCategoryByID(selectedCategoryID)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		if category == nil {
+			return nil, nil, "", errNotFound
+		}
+
+		topics, err := topicsForCategory(selectedCategoryID, mode, limit)
+		return categories, topics, category.Name, err
+	}
+
+	topics, err := topicsForCategory("", mode, limit)
+	return categories, topics, "", err
+}
+
+func topicsForCategory(categoryID string, mode topicListMode, limit int) ([]Topic, error) {
+	if categoryID != "" {
+		if mode == latestTopics {
+			return GetLatestTopicsByCategory(categoryID, limit)
+		}
+		return GetTopicsByCategory(categoryID)
+	}
+
+	if mode == latestTopics {
+		return GetLatestTopics(limit)
+	}
+	return GetAllTopics()
+}
+
+func fillTopicDetails(topic *Topic, user *User) ([]Comment, error) {
+	comments, err := GetCommentsByTopic(topic.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	topic.Comments = comments
+	topic.CommentCount = len(comments)
+
+	if user == nil {
+		return comments, nil
+	}
+
+	topic.UserVote, err = GetUserVote(user.ID, "topic", topic.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range comments {
+		comments[i].UserVote, err = GetUserVote(user.ID, "comment", comments[i].ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	topic.Comments = comments
+
+	return comments, nil
+}
+
+func renderAuthFormError(w http.ResponseWriter, templateName, message string, values map[string]string) {
+	data := PageData{
+		Message:    message,
+		FormValues: formValues(values),
+	}
+	renderFormError(w, http.StatusUnprocessableEntity, templateName, data)
+}
+
+func readVoteType(r *http.Request) (string, bool) {
+	voteType := strings.TrimSpace(r.FormValue("vote"))
+	return voteType, voteType == "like" || voteType == "dislike"
 }
 
 func containsAny(value string, needles ...string) bool {
