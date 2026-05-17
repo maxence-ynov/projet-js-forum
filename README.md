@@ -1,256 +1,260 @@
-# Forum Golang - Guide de démarrage
+# Forum Go
 
-## 📋 Description
+Application de forum web développée en Go, sans framework externe, avec rendu HTML côté serveur et persistance des données dans SQLite.
 
-Projet de forum simple en **Golang** sans framework, utilisant :
-- **net/http** - Serveur HTTP natif
-- **html/template** - Rendu des templates
-- **SQLite** - Base de données
-- **bcrypt** - Hashage des mots de passe
-- **uuid** - Génération d'identifiants uniques
-- **Cookies de session** - Gestion des sessions utilisateur
+Le projet propose une base fonctionnelle de forum communautaire : inscription, connexion, publication de sujets, commentaires, catégories, profil utilisateur et système de votes.
 
-## 🏗️ Architecture du projet
+## Présentation
 
-```
-projet-js-forum/
-├── main.go                 # Point d'entrée principal
-├── go.mod                  # Dépendances du projet
-├── forum.db               # Base de données SQLite (généré)
-│
-├── /internal              # Code interne du projet
-│   ├── models.go         # Structures de données (User, Post, Reply, etc.)
-│   ├── database.go       # Fonctions d'accès à la base de données
-│   ├── auth.go           # Authentification et gestion des sessions
-│   └── handlers.go       # Gestionnaires HTTP (routes)
-│
-├── /templates            # Templates HTML
-│   ├── layout.html      # Layout principal (header, footer)
-│   ├── index.html       # Page d'accueil
-│   ├── login.html       # Page de connexion
-│   ├── register.html    # Page d'inscription
-│   └── forum.html       # Page du forum
-│
-└── /static              # Fichiers statiques (CSS, JS, images)
-```
+Ce projet est une application web monolithique écrite en Go. Il utilise la bibliothèque standard pour le serveur HTTP, les templates HTML et la gestion des routes, puis SQLite pour stocker les utilisateurs, sessions, catégories, sujets, commentaires et votes.
 
-## 🚀 Installation et lancement
+L'objectif est de fournir un forum simple, lisible et facilement extensible, adapté à un projet étudiant ou à une base d'apprentissage pour le développement web en Go.
 
-### 1. Installer les dépendances
+## Fonctionnalités
+
+- Inscription et connexion utilisateur
+- Hashage sécurisé des mots de passe avec bcrypt
+- Sessions utilisateur via cookies HTTP-only
+- Page d'accueil avec les derniers sujets
+- Forum protégé accessible aux utilisateurs connectés
+- Création de sujets dans des catégories
+- Consultation d'un sujet avec ses commentaires
+- Ajout de commentaires sur les sujets
+- Système de likes et dislikes sur les sujets
+- Système de likes et dislikes sur les commentaires
+- Page profil avec les sujets créés et les sujets aimés
+- Filtrage des sujets par catégorie
+- Pages d'erreur dédiées pour les erreurs 400, 404 et 500
+- Validation des formulaires côté serveur
+- Base SQLite initialisée automatiquement au lancement
+
+## Technologies
+
+- Go 1.22 ou supérieur recommandé
+- SQLite
+- HTML templates Go
+- CSS statique
+- Serveur HTTP natif Go
+
+## Installation
+
+### Prérequis
+
+- Go 1.22 ou supérieur
+- Git
+- Un compilateur C compatible avec `github.com/mattn/go-sqlite3`
+
+> `go-sqlite3` utilise CGO. Sur Windows, installez par exemple MinGW-w64 ou un environnement équivalent si la compilation SQLite échoue.
+
+### Cloner le projet
 
 ```bash
-cd c:\Users\Pirat\Documents\GitHub\projet-js-forum
+git clone <url-du-depot>
+cd projet-js-forum
+```
+
+### Installer les dépendances
+
+```bash
 go mod download
 ```
 
-### 2. Lancer le serveur
+### Vérifier les modules
+
+```bash
+go mod tidy
+```
+
+## Lancement
+
+Lancer l'application en local :
 
 ```bash
 go run main.go
 ```
 
-Le serveur démarre sur **http://localhost:8080**
+Le serveur démarre sur :
 
-### 3. Accéder au forum
-
-Ouvrez votre navigateur et allez à : `http://localhost:8080`
-
-## 📚 Fonctionnalités
-
-### ✅ Authentification
-- 📝 Inscription avec validation
-- 🔐 Connexion sécurisée (bcrypt)
-- 🍪 Sessions avec cookies
-- 🔓 Déconnexion
-
-### 💬 Forum
-- 📌 Créer des posts (sujets)
-- 💭 Ajouter des réponses aux posts
-- 👤 Voir le nom d'auteur de chaque post/réponse
-- 📅 Dates de publication
-
-### 🔒 Sécurité
-- Mots de passe hashés avec bcrypt
-- Sessions sécurisées avec tokens
-- Middleware d'authentification
-- Protection CSRF via POST
-
-## 📝 Routes principales
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET | `/` | Accueil |
-| GET | `/register` | Page d'inscription |
-| POST | `/register` | Traiter l'inscription |
-| GET | `/login` | Page de connexion |
-| POST | `/login` | Traiter la connexion |
-| GET | `/logout` | Déconnexion |
-| GET | `/forum` | Consulter le forum (protégé) |
-| POST | `/forum/post` | Créer un post (protégé) |
-| POST | `/forum/post/{id}/reply` | Ajouter une réponse (protégé) |
-
-## 🗄️ Base de données
-
-La base de données SQLite contient 4 tables :
-
-### `users`
-```sql
-- id (TEXT PRIMARY KEY)
-- username (TEXT UNIQUE)
-- email (TEXT UNIQUE)
-- password (TEXT) -- hash bcrypt
-- created_at (DATETIME)
+```text
+http://localhost:8080
 ```
 
-### `sessions`
-```sql
-- id (TEXT PRIMARY KEY)
-- user_id (TEXT FOREIGN KEY)
-- token (TEXT UNIQUE)
-- created_at (DATETIME)
-- expires_at (DATETIME)
+La base de données `forum.db` est créée automatiquement à la racine du projet lors du premier lancement.
+
+## Structure du projet
+
+```text
+projet-js-forum/
+├── main.go
+├── go.mod
+├── go.sum
+├── README.md
+├── DATABASE_SCHEMA.md
+├── DATABASE_SUMMARY.md
+├── DATABASE_USAGE.md
+├── internal/
+│   ├── auth.go
+│   ├── database.go
+│   ├── errors.go
+│   ├── handlers.go
+│   ├── models.go
+│   └── validation.go
+├── templates/
+│   ├── error.html
+│   ├── forum.html
+│   ├── index.html
+│   ├── layout.html
+│   ├── login.html
+│   ├── profile.html
+│   ├── register.html
+│   └── topic.html
+└── static/
+    ├── README.md
+    └── style.css
 ```
 
-### `posts`
-```sql
-- id (TEXT PRIMARY KEY)
-- user_id (TEXT FOREIGN KEY)
-- title (TEXT)
-- content (TEXT)
-- created_at (DATETIME)
-```
+## Packages utilisés
 
-### `replies`
-```sql
-- id (TEXT PRIMARY KEY)
-- post_id (TEXT FOREIGN KEY)
-- user_id (TEXT FOREIGN KEY)
-- content (TEXT)
-- created_at (DATETIME)
-```
+### Bibliothèque standard
 
-## 🔧 Code exemple
+- `net/http` : serveur HTTP, routes et middlewares
+- `html/template` : rendu des pages HTML
+- `database/sql` : interface SQL générique
+- `context` : stockage de l'utilisateur authentifié pendant la requête
+- `crypto/rand` et `encoding/hex` : génération de tokens de session
+- `net/mail` : validation des adresses email
+- `regexp` : validation des champs utilisateur
+- `time` : gestion des dates et expiration des sessions
+- `log` : journalisation des erreurs serveur
 
-### Créer un utilisateur
-```go
-user := &User{
-    ID:       uuid.New().String(),
-    Username: "alice",
-    Email:    "alice@example.com",
-    Password: hashedPassword, // hashage avec bcrypt
-}
-err := CreateUser(user)
-```
+### Dépendances externes
 
-### Vérifier un mot de passe
-```go
-isValid := VerifyPassword(hashedPassword, plainPassword)
-```
+| Package | Rôle |
+| --- | --- |
+| `github.com/mattn/go-sqlite3` | Driver SQLite pour `database/sql` |
+| `golang.org/x/crypto/bcrypt` | Hashage et vérification des mots de passe |
+| `github.com/google/uuid` | Génération des identifiants uniques |
 
-### Récupérer l'utilisateur connecté
-```go
-user := GetUserFromRequest(r)
-if user != nil {
-    // Utilisateur authentifié
-}
-```
+## Routes principales
 
-### Créer un post
-```go
-post := &Post{
-    ID:      uuid.New().String(),
-    UserID:  user.ID,
-    Title:   "Mon premier post",
-    Content: "Contenu du post...",
-}
-err := CreatePost(post)
-```
+| Méthode | Route | Accès | Description |
+| --- | --- | --- | --- |
+| `GET` | `/` | Public | Page d'accueil avec les derniers sujets |
+| `GET` | `/register` | Public | Formulaire d'inscription |
+| `POST` | `/register` | Public | Création d'un compte |
+| `GET` | `/login` | Public | Formulaire de connexion |
+| `POST` | `/login` | Public | Connexion utilisateur |
+| `GET` | `/logout` | Connecté | Déconnexion |
+| `GET` | `/forum` | Connecté | Liste des sujets du forum |
+| `POST` | `/forum/post` | Connecté | Création d'un sujet |
+| `GET` | `/forum/post/{id}` | Connecté | Détail d'un sujet |
+| `POST` | `/forum/post/{id}/reply` | Connecté | Ajout d'un commentaire |
+| `POST` | `/forum/post/{id}/vote` | Connecté | Vote sur un sujet |
+| `POST` | `/forum/post/{id}/comments/{commentID}/vote` | Connecté | Vote sur un commentaire |
+| `GET` | `/profile` | Connecté | Profil de l'utilisateur |
+| `GET` | `/static/*` | Public | Fichiers statiques |
 
-## 📖 Structure du code
+## Base de données
 
-### `main.go`
-- Initialisation de la base de données
-- Configuration des routes
-- Lancement du serveur
+SQLite est initialisé automatiquement au démarrage. Les tables principales sont :
 
-### `internal/models.go`
-- Structures de données (User, Post, Reply, Session)
-- Struct PageData pour les templates
+- `users` : comptes utilisateurs
+- `sessions` : sessions actives
+- `categories` : catégories du forum
+- `topics` : sujets publiés
+- `comments` : commentaires des sujets
+- `votes` : votes uniques par utilisateur et par cible
+- `likes` et `dislikes` : anciennes tables conservées dans le schéma
 
-### `internal/database.go`
-- Initialisation et création des tables
-- Fonctions CRUD pour tous les modèles
-- Requêtes SQL préparées
+Les catégories par défaut sont ajoutées automatiquement si elles n'existent pas :
 
-### `internal/auth.go`
-- Hashage bcrypt
-- Génération de tokens
-- Gestion des sessions
-- Middleware d'authentification
+- Général
+- Questions
+- Annonces
 
-### `internal/handlers.go`
-- Gestionnaires pour chaque route
-- Rendu des templates
-- Validation des données
-- Redirection post-action
+## Captures d'écran
 
-## 🎯 Bonnes pratiques appliquées
+Les images ci-dessous sont des placeholders. Remplacez-les par de vraies captures dans un dossier `docs/screenshots/`.
 
-✅ Code lisible et commenté  
-✅ Séparation des responsabilités (models, database, handlers)  
-✅ Pas de framework complexe  
-✅ Gestion d'erreurs simple mais complète  
-✅ Validation des données  
-✅ Sécurité de base (bcrypt, sessions)  
-✅ Templates HTML propres et stylisés  
+### Accueil
 
-## 💡 Améliorations possibles
+![Capture d'écran de la page d'accueil](docs/screenshots/home.png)
 
-- Pagination des posts
-- Édition/suppression de posts
-- Système de réactions (likes)
-- Recherche de posts
-- Catégories/tags
-- Notifications
-- Système d'administration
-- Tests unitaires
-- Documentation API
+### Inscription
 
-## ❓ Dépannage
+![Capture d'écran de la page d'inscription](docs/screenshots/register.png)
 
-### Base de données vide
+### Connexion
+
+![Capture d'écran de la page de connexion](docs/screenshots/login.png)
+
+### Forum
+
+![Capture d'écran de la liste des sujets](docs/screenshots/forum.png)
+
+### Sujet
+
+![Capture d'écran d'un sujet avec commentaires](docs/screenshots/topic.png)
+
+### Profil
+
+![Capture d'écran du profil utilisateur](docs/screenshots/profile.png)
+
+## Commandes utiles
+
+Formater le code :
+
 ```bash
-# Supprimer et recréer la base de données
+go fmt ./...
+```
+
+Compiler le projet :
+
+```bash
+go build ./...
+```
+
+Lancer l'application :
+
+```bash
+go run main.go
+```
+
+Réinitialiser la base locale :
+
+```bash
 rm forum.db
 go run main.go
 ```
 
-### Erreur de module
-```bash
-# Télécharger les dépendances
-go mod download
-go mod tidy
+Sur PowerShell :
+
+```powershell
+Remove-Item .\forum.db
+go run main.go
 ```
 
-### Port 8080 déjà utilisé
-Modifier dans `main.go` :
-```go
-adresse := "localhost:3000"  // ou un autre port
-```
+## Sécurité
 
-## 🎓 Pour les étudiants
+- Les mots de passe sont stockés sous forme de hash bcrypt.
+- Les sessions utilisent des tokens aléatoires de 32 octets.
+- Les cookies de session sont configurés en `HttpOnly` et `SameSite=Strict`.
+- Les formulaires sont limités à 1 Mo.
+- Les entrées utilisateur sont validées côté serveur.
+- Les identifiants de sujets et commentaires sont validés au format UUID.
 
-Ce projet est une excellente base pour apprendre :
-- La programmation web en Go
-- SQLite et les bases de données
-- La gestion des sessions
-- La sécurité web (hachage, HTTPS, etc.)
-- La structuration d'un projet Go
+## Améliorations possibles
 
-N'hésitez pas à l'étendre et l'améliorer ! 🚀
+- Ajouter des tests automatisés
+- Ajouter la suppression et l'édition des sujets
+- Ajouter la suppression et l'édition des commentaires
+- Ajouter une pagination
+- Ajouter une recherche de sujets
+- Ajouter un panneau d'administration
+- Ajouter une configuration par variables d'environnement
+- Ajouter une protection CSRF complète
+- Ajouter un système d'upload d'avatar
 
----
+## Licence
 
-**Auteur** : Projet étudiant en Golang  
-**Date** : 2024  
-**Licence** : Libre d'utilisation à titre éducatif
+Projet fourni à des fins pédagogiques. Ajoutez une licence officielle si le projet doit être publié ou distribué.
