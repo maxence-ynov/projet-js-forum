@@ -1,0 +1,20 @@
+# Ignorer les fichiers générés
+forum.db
+forum.db-journal
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Ignorer les dossiers du IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Dépendances Go
+vendor/
+go.sum

@@ -1,0 +1,22 @@
+{{define "page"}}
+<div class="card center">
+    <h1>Bienvenue sur le Forum ! 👋</h1>
+    <p style="margin-bottom: 1rem; color: #7f8c8d;">Un lieu simple et agréable pour discuter.</p>
+    
+    {{if .IsLoggedIn}}
+        <a href="/forum" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+            Accéder au forum
+        </a>
+    {{else}}
+        <p style="margin-bottom: 1rem;">Connectez-vous ou créez un compte pour commencer à discuter.</p>
+        <div class="button-group">
+            <a href="/login" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px; flex: 1; text-align: center;">
+                Se connecter
+            </a>
+            <a href="/register" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #27ae60; color: white; border-radius: 4px; flex: 1; text-align: center;">
+                S'inscrire
+            </a>
+        </div>
+    {{end}}
+</div>
+{{end}}
