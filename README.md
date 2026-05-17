@@ -220,6 +220,21 @@ Lancer l'application :
 go run main.go
 ```
 
+Ajouter des données fake pour tester rapidement :
+
+```bash
+go run ./cmd/seed
+```
+
+Réinitialiser uniquement les données fake puis les recréer :
+
+```bash
+go run ./cmd/seed --reset
+```
+
+Comptes de test créés : `alice`, `mehdi`, `clara`, `lucas`.
+Mot de passe commun : `password123`.
+
 Réinitialiser la base locale :
 
 ```bash
