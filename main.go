@@ -29,6 +29,7 @@ func main() {
 
 	// Routes protégées (forum)
 	mux.HandleFunc("GET /forum", internal.RequireAuth(internal.ForumHandler))
+	mux.HandleFunc("GET /profile", internal.RequireAuth(internal.ProfileHandler))
 	mux.HandleFunc("POST /forum/post", internal.RequireAuth(internal.CreatePostHandler))
 	mux.HandleFunc("GET /forum/post/{id}", internal.LoadUserIfAuthenticated(internal.TopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/reply", internal.RequireAuth(internal.CreateReplyHandler))

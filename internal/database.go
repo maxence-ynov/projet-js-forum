@@ -563,6 +563,85 @@ func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 	return topics, rows.Err()
 }
 
+// GetTopicsByUser récupère les topics créés par un utilisateur.
+func GetTopicsByUser(userID string) ([]Topic, error) {
+	query := `
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
+		FROM topics t
+		JOIN users u ON t.user_id = u.id
+		JOIN categories c ON t.category_id = c.id
+		WHERE t.user_id = ?
+		ORDER BY t.created_at DESC
+	`
+
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("erreur requête topics utilisateur: %w", err)
+	}
+	defer rows.Close()
+
+	var topics []Topic
+	for rows.Next() {
+		var topic Topic
+		err := rows.Scan(
+			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
+			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("erreur scan topic utilisateur: %w", err)
+		}
+		topics = append(topics, topic)
+	}
+
+	return topics, rows.Err()
+}
+
+// GetLikedTopicsByUser récupère les topics likés par un utilisateur.
+func GetLikedTopicsByUser(userID string) ([]Topic, error) {
+	query := `
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name,
+		       (SELECT COUNT(*) FROM comments co WHERE co.topic_id = t.id),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'like'),
+		       (SELECT COUNT(*) FROM votes v WHERE v.target_type = 'topic' AND v.target_id = t.id AND v.vote_type = 'dislike')
+		FROM topics t
+		JOIN users u ON t.user_id = u.id
+		JOIN categories c ON t.category_id = c.id
+		JOIN votes uv ON uv.target_type = 'topic'
+			AND uv.target_id = t.id
+			AND uv.user_id = ?
+			AND uv.vote_type = 'like'
+		ORDER BY uv.updated_at DESC
+	`
+
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("erreur requête topics likés: %w", err)
+	}
+	defer rows.Close()
+
+	var topics []Topic
+	for rows.Next() {
+		var topic Topic
+		err := rows.Scan(
+			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
+			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount, &topic.Likes, &topic.Dislikes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("erreur scan topic liké: %w", err)
+		}
+		topics = append(topics, topic)
+	}
+
+	return topics, rows.Err()
+}
+
 // GetLatestTopicsByCategory récupère les derniers topics d'une catégorie.
 func GetLatestTopicsByCategory(categoryID string, limit int) ([]Topic, error) {
 	query := `

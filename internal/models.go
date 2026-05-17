@@ -88,6 +88,8 @@ type PageData struct {
 	User                 *User
 	Categories           []Category
 	Topics               []Topic
+	CreatedTopics        []Topic
+	LikedTopics          []Topic
 	Topic                *Topic
 	Comments             []Comment
 	SelectedCategoryID   string

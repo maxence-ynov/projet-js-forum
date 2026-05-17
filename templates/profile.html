@@ -1,0 +1,55 @@
+{{define "page"}}
+<div class="card">
+    <h1>Mes sujets</h1>
+    <p class="topic-meta">Retrouvez les sujets que vous avez créés et ceux que vous avez likés.</p>
+</div>
+
+<div class="home-grid">
+    <section class="card">
+        <h2>Sujets créés</h2>
+
+        {{if .CreatedTopics}}
+            <ul class="topic-list">
+                {{range .CreatedTopics}}
+                    <li class="topic-item">
+                        <a class="topic-name" href="/forum/post/{{.ID}}">{{.Title}}</a>
+                        <p class="topic-meta">
+                            <span class="topic-category">{{.CategoryName}}</span>
+                            le {{.CreatedAt.Format "02/01/2006 à 15:04"}}
+                            · {{.CommentCount}} commentaire(s)
+                            · {{.Likes}} like(s)
+                            · {{.Dislikes}} dislike(s)
+                        </p>
+                    </li>
+                {{end}}
+            </ul>
+        {{else}}
+            <p class="topic-meta">Vous n'avez créé aucun sujet pour le moment.</p>
+        {{end}}
+    </section>
+
+    <section class="card">
+        <h2>Sujets likés</h2>
+
+        {{if .LikedTopics}}
+            <ul class="topic-list">
+                {{range .LikedTopics}}
+                    <li class="topic-item">
+                        <a class="topic-name" href="/forum/post/{{.ID}}">{{.Title}}</a>
+                        <p class="topic-meta">
+                            <span class="topic-category">{{.CategoryName}}</span>
+                            Par <strong>{{.Username}}</strong>
+                            le {{.CreatedAt.Format "02/01/2006 à 15:04"}}
+                            · {{.CommentCount}} commentaire(s)
+                            · {{.Likes}} like(s)
+                            · {{.Dislikes}} dislike(s)
+                        </p>
+                    </li>
+                {{end}}
+            </ul>
+        {{else}}
+            <p class="topic-meta">Vous n'avez liké aucun sujet pour le moment.</p>
+        {{end}}
+    </section>
+</div>
+{{end}}

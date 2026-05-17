@@ -365,6 +365,8 @@
             <nav>
                 {{if .IsLoggedIn}}
                     <span>Bienvenue, <strong>{{.User.Username}}</strong></span>
+                    <a href="/forum">Forum</a>
+                    <a href="/profile">Mes sujets</a>
                     <a href="/logout">Déconnexion</a>
                 {{else}}
                     <a href="/login">Connexion</a>

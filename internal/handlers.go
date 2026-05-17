@@ -328,6 +328,38 @@ func ForumHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "layout.html", "forum.html", data)
 }
 
+// ProfileHandler affiche les sujets de l'utilisateur connecté et ceux qu'il a likés.
+func ProfileHandler(w http.ResponseWriter, r *http.Request) {
+	user := GetUserFromRequest(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	createdTopics, err := GetTopicsByUser(user.ID)
+	if err != nil {
+		log.Printf("Erreur récupération sujets utilisateur: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	likedTopics, err := GetLikedTopicsByUser(user.ID)
+	if err != nil {
+		log.Printf("Erreur récupération sujets likés: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		IsLoggedIn:    true,
+		User:          user,
+		CreatedTopics: createdTopics,
+		LikedTopics:   likedTopics,
+	}
+
+	renderTemplate(w, "layout.html", "profile.html", data)
+}
+
 // CreatePostHandler crée un nouveau post
 func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
