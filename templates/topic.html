@@ -1,0 +1,59 @@
+{{define "page"}}
+{{if .Topic}}
+<div class="card">
+    <p class="topic-meta">
+        <a href="/forum">Forum</a> /
+        <a href="/forum?category={{.Topic.CategoryID}}">{{.Topic.CategoryName}}</a>
+    </p>
+
+    <h1>{{.Topic.Title}}</h1>
+
+    <p class="topic-meta">
+        Par <strong>{{.Topic.Username}}</strong>
+        le {{.Topic.CreatedAt.Format "02/01/2006 à 15:04"}}
+    </p>
+
+    <p class="topic-meta">
+        <span class="topic-category">{{.Topic.CategoryName}}</span>
+        {{.Topic.CommentCount}} commentaire(s) -
+        {{.Topic.Likes}} like(s) -
+        {{.Topic.Dislikes}} dislike(s)
+    </p>
+
+    <div class="post-content mt-2">
+        {{.Topic.Content}}
+    </div>
+</div>
+
+<div class="card">
+    <h2>Commentaires</h2>
+
+    {{if .Comments}}
+        {{range .Comments}}
+        <div class="reply" style="margin-left: 0;">
+            <div class="reply-header">
+                <strong>{{.Username}}</strong> -
+                {{.CreatedAt.Format "02/01/2006 15:04"}} -
+                {{.Likes}} like(s) -
+                {{.Dislikes}} dislike(s)
+            </div>
+            <div>{{.Content}}</div>
+        </div>
+        {{end}}
+    {{else}}
+        <p class="topic-meta">Aucun commentaire pour le moment.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Ajouter un commentaire</h2>
+    <form method="POST" action="/forum/post/{{.Topic.ID}}/reply">
+        <div class="form-group">
+            <label for="content">Commentaire:</label>
+            <textarea id="content" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
+        </div>
+        <button type="submit">Envoyer le commentaire</button>
+    </form>
+</div>
+{{end}}
+{{end}}

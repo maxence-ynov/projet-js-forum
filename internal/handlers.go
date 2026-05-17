@@ -348,7 +348,28 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Valider les données
 	if title == "" || content == "" || categoryID == "" {
-		http.Redirect(w, r, "/forum", http.StatusSeeOther)
+		renderForumFormWithMessage(w, r, "Tous les champs sont obligatoires", categoryID)
+		return
+	}
+
+	if len(title) < 3 {
+		renderForumFormWithMessage(w, r, "Le titre doit contenir au moins 3 caractères", categoryID)
+		return
+	}
+
+	if len(content) < 10 {
+		renderForumFormWithMessage(w, r, "Le contenu doit contenir au moins 10 caractères", categoryID)
+		return
+	}
+
+	category, err := GetCategoryByID(categoryID)
+	if err != nil {
+		log.Printf("Erreur récupération catégorie: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if category == nil {
+		renderForumFormWithMessage(w, r, "La catégorie sélectionnée est invalide", categoryID)
 		return
 	}
 
@@ -368,7 +389,79 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/forum?category="+categoryID, http.StatusSeeOther)
+	http.Redirect(w, r, "/forum/post/"+topic.ID, http.StatusSeeOther)
+}
+
+// TopicHandler affiche un sujet et ses commentaires.
+func TopicHandler(w http.ResponseWriter, r *http.Request) {
+	user := GetUserFromRequest(r)
+	topicID := r.PathValue("id")
+	if topicID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	topic, err := GetTopicByID(topicID)
+	if err != nil {
+		log.Printf("Erreur récupération sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+	if topic == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	comments, err := GetCommentsByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération commentaires: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	likes, err := GetLikesByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération likes sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	dislikes, err := GetDislikesByTopic(topic.ID)
+	if err != nil {
+		log.Printf("Erreur récupération dislikes sujet: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	for i := range comments {
+		comments[i].Likes, err = GetLikesByComment(comments[i].ID)
+		if err != nil {
+			log.Printf("Erreur récupération likes commentaire: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+
+		comments[i].Dislikes, err = GetDislikesByComment(comments[i].ID)
+		if err != nil {
+			log.Printf("Erreur récupération dislikes commentaire: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	topic.Comments = comments
+	topic.CommentCount = len(comments)
+	topic.Likes = likes
+	topic.Dislikes = dislikes
+
+	data := PageData{
+		IsLoggedIn: user != nil,
+		User:       user,
+		Topic:      topic,
+		Comments:   comments,
+	}
+
+	renderTemplate(w, "layout.html", "topic.html", data)
 }
 
 // CreateReplyHandler crée une réponse à un post
@@ -415,7 +508,36 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/forum", http.StatusSeeOther)
+	http.Redirect(w, r, "/forum/post/"+topicID, http.StatusSeeOther)
+}
+
+func renderForumFormWithMessage(w http.ResponseWriter, r *http.Request, message, selectedCategoryID string) {
+	user := GetUserFromRequest(r)
+
+	categories, err := GetAllCategories()
+	if err != nil {
+		log.Printf("Erreur récupération catégories: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	topics, err := GetAllTopics()
+	if err != nil {
+		log.Printf("Erreur récupération sujets: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		IsLoggedIn:         true,
+		User:               user,
+		Categories:         categories,
+		Topics:             topics,
+		SelectedCategoryID: selectedCategoryID,
+		Message:            message,
+	}
+
+	renderTemplate(w, "layout.html", "forum.html", data)
 }
 
 // renderTemplate charge et exécute les templates HTML

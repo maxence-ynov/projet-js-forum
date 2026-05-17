@@ -81,6 +81,11 @@ func createAllTables() error {
 		return err
 	}
 
+	// Table dislikes
+	if err := createDislikesTable(); err != nil {
+		return err
+	}
+
 	// Table sessions
 	if err := createSessionsTable(); err != nil {
 		return err
@@ -177,6 +182,25 @@ func createCommentsTable() error {
 func createLikesTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS likes (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		topic_id TEXT,
+		comment_id TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+		FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
+		FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+		UNIQUE(user_id, topic_id, comment_id)
+	);
+	`
+	_, err := DB.Exec(query)
+	return err
+}
+
+// createDislikesTable crée la table des dislikes.
+func createDislikesTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS dislikes (
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL,
 		topic_id TEXT,
@@ -698,6 +722,32 @@ func GetLikesByComment(commentID string) (int, error) {
 	err := DB.QueryRow(query, commentID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("erreur comptage likes: %w", err)
+	}
+
+	return count, nil
+}
+
+// GetDislikesByTopic récupère le nombre de dislikes pour un topic.
+func GetDislikesByTopic(topicID string) (int, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM dislikes WHERE topic_id = ? AND comment_id IS NULL"
+
+	err := DB.QueryRow(query, topicID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("erreur comptage dislikes: %w", err)
+	}
+
+	return count, nil
+}
+
+// GetDislikesByComment récupère le nombre de dislikes pour un commentaire.
+func GetDislikesByComment(commentID string) (int, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM dislikes WHERE comment_id = ?"
+
+	err := DB.QueryRow(query, commentID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("erreur comptage dislikes: %w", err)
 	}
 
 	return count, nil

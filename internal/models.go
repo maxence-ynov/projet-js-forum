@@ -44,6 +44,7 @@ type Topic struct {
 	Comments     []Comment // Les commentaires du topic
 	CommentCount int       // Nombre de commentaires
 	Likes        int       // Nombre de likes
+	Dislikes     int       // Nombre de dislikes
 }
 
 // Comment représente un commentaire sur un topic
@@ -56,6 +57,7 @@ type Comment struct {
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 	Likes     int       // Nombre de likes
+	Dislikes  int       // Nombre de dislikes
 }
 
 // Like représente un like pour un topic ou commentaire

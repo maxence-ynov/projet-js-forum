@@ -30,6 +30,7 @@ func main() {
 	// Routes protégées (forum)
 	mux.HandleFunc("GET /forum", internal.RequireAuth(internal.ForumHandler))
 	mux.HandleFunc("POST /forum/post", internal.RequireAuth(internal.CreatePostHandler))
+	mux.HandleFunc("GET /forum/post/{id}", internal.RequireAuth(internal.TopicHandler))
 	mux.HandleFunc("POST /forum/post/{id}/reply", internal.RequireAuth(internal.CreateReplyHandler))
 
 	// Servir les fichiers statiques

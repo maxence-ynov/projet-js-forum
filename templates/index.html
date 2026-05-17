@@ -44,7 +44,7 @@
             <ul class="topic-list">
                 {{range .Topics}}
                     <li class="topic-item">
-                        <span class="topic-name">{{.Title}}</span>
+                        <a class="topic-name" href="/forum/post/{{.ID}}">{{.Title}}</a>
                         <p class="topic-meta">
                             <span class="topic-category">{{.CategoryName}}</span>
                             Par <strong>{{.Username}}</strong>

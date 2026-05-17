@@ -350,7 +350,7 @@
 
     <div class="container">
         {{if .Message}}
-            {{if contains .Message "incorrect" "existe" "correspond" "obligatoires" "6 caractères"}}
+            {{if contains .Message "incorrect" "existe" "correspond" "obligatoires" "caractères" "invalide"}}
                 <div class="message error">{{.Message}}</div>
             {{else}}
                 <div class="message success">{{.Message}}</div>
