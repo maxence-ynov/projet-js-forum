@@ -42,6 +42,7 @@ type Topic struct {
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 	Comments     []Comment // Les commentaires du topic
+	CommentCount int       // Nombre de commentaires
 	Likes        int       // Nombre de likes
 }
 
@@ -74,5 +75,7 @@ type PageData struct {
 	Topics     []Topic
 	Topic      *Topic
 	Comments   []Comment
+	SelectedCategoryID   string
+	SelectedCategoryName string
 	Message    string // Pour afficher des messages de succès/erreur
 }

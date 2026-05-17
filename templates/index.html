@@ -1,22 +1,63 @@
 {{define "page"}}
-<div class="card center">
-    <h1>Bienvenue sur le Forum ! 👋</h1>
-    <p style="margin-bottom: 1rem; color: #7f8c8d;">Un lieu simple et agréable pour discuter.</p>
-    
-    {{if .IsLoggedIn}}
-        <a href="/forum" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
-            Accéder au forum
-        </a>
-    {{else}}
-        <p style="margin-bottom: 1rem;">Connectez-vous ou créez un compte pour commencer à discuter.</p>
-        <div class="button-group">
-            <a href="/login" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px; flex: 1; text-align: center;">
-                Se connecter
-            </a>
-            <a href="/register" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #27ae60; color: white; border-radius: 4px; flex: 1; text-align: center;">
-                S'inscrire
-            </a>
+<div class="card">
+    <h1>Accueil du forum</h1>
+    <p style="color: #7f8c8d;">Parcourez les catégories et les derniers sujets publiés.</p>
+</div>
+
+<div class="home-grid">
+    <section class="card">
+        <h2>Catégories</h2>
+
+        {{if .Categories}}
+            <ul class="category-list">
+                {{range .Categories}}
+                    <li class="category-item">
+                        <span class="category-name">{{.Name}}</span>
+                        {{if .Description}}
+                            <p class="category-description">{{.Description}}</p>
+                        {{else}}
+                            <p class="category-description">Aucune description.</p>
+                        {{end}}
+                    </li>
+                {{end}}
+            </ul>
+        {{else}}
+            <p class="category-description">Aucune catégorie disponible pour le moment.</p>
+        {{end}}
+    </section>
+
+    <section class="card">
+        <h2>Derniers sujets</h2>
+
+        {{if .Topics}}
+            <ul class="topic-list">
+                {{range .Topics}}
+                    <li class="topic-item">
+                        <span class="topic-name">{{.Title}}</span>
+                        <p class="topic-meta">
+                            <span class="topic-category">{{.CategoryName}}</span>
+                            Par <strong>{{.Username}}</strong>
+                            le {{.CreatedAt.Format "02/01/2006 à 15:04"}}
+                            · {{.CommentCount}} commentaire(s)
+                        </p>
+                    </li>
+                {{end}}
+            </ul>
+        {{else}}
+            <p class="topic-meta">Aucun sujet n'a encore été publié.</p>
+        {{end}}
+
+        <div class="mt-2">
+            {{if .IsLoggedIn}}
+                <a href="/forum" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+                    Créer un sujet
+                </a>
+            {{else}}
+                <a href="/login" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+                    Se connecter pour participer
+                </a>
+            {{end}}
         </div>
-    {{end}}
+    </section>
 </div>
 {{end}}

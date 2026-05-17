@@ -38,6 +38,11 @@ func InitDB(nomFichier string) error {
 
 	log.Println("✓ Tables créées/vérifiées")
 
+	err = seedDefaultCategories()
+	if err != nil {
+		return fmt.Errorf("erreur création catégories par défaut: %w", err)
+	}
+
 	return nil
 }
 
@@ -79,6 +84,24 @@ func createAllTables() error {
 	// Table sessions
 	if err := createSessionsTable(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func seedDefaultCategories() error {
+	categories := []Category{
+		{ID: "general", Name: "Général", Description: "Discussions générales autour du forum."},
+		{ID: "questions", Name: "Questions", Description: "Questions, aide et réponses de la communauté."},
+		{ID: "annonces", Name: "Annonces", Description: "Informations importantes et nouveautés."},
+	}
+
+	query := "INSERT OR IGNORE INTO categories (id, name, description) VALUES (?, ?, ?)"
+	for _, category := range categories {
+		_, err := DB.Exec(query, category.ID, category.Name, category.Description)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -381,11 +404,14 @@ func CreateTopic(topic *Topic) error {
 // GetAllTopics récupère tous les topics avec les infos utilisateur
 func GetAllTopics() ([]Topic, error) {
 	query := `
-		SELECT t.id, t.category_id, t.user_id, t.title, t.content, 
-		       t.created_at, t.updated_at, u.username, c.name
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
+		LEFT JOIN comments co ON co.topic_id = t.id
+		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
+		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.updated_at DESC
 	`
 
@@ -401,9 +427,48 @@ func GetAllTopics() ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan topic: %w", err)
+		}
+		topics = append(topics, topic)
+	}
+
+	return topics, rows.Err()
+}
+
+// GetLatestTopics récupère les derniers topics avec leur nombre de commentaires.
+func GetLatestTopics(limit int) ([]Topic, error) {
+	query := `
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		FROM topics t
+		JOIN users u ON t.user_id = u.id
+		JOIN categories c ON t.category_id = c.id
+		LEFT JOIN comments co ON co.topic_id = t.id
+		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
+		         t.created_at, t.updated_at, u.username, c.name
+		ORDER BY t.created_at DESC
+		LIMIT ?
+	`
+
+	rows, err := DB.Query(query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("erreur requête derniers topics: %w", err)
+	}
+	defer rows.Close()
+
+	var topics []Topic
+	for rows.Next() {
+		var topic Topic
+		err := rows.Scan(
+			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
+			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("erreur scan dernier topic: %w", err)
 		}
 		topics = append(topics, topic)
 	}

@@ -1,8 +1,18 @@
 {{define "page"}}
 <div class="card">
-    <h2>Créer un nouveau post</h2>
+    <h2>Créer un nouveau sujet</h2>
     
     <form method="POST" action="/forum/post">
+        <div class="form-group">
+            <label for="category_id">Catégorie:</label>
+            <select id="category_id" name="category_id" required>
+                <option value="">Choisir une catégorie</option>
+                {{range .Categories}}
+                    <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
         <div class="form-group">
             <label for="title">Titre:</label>
             <input type="text" id="title" name="title" required placeholder="Entrez le titre de votre sujet">
@@ -17,13 +27,14 @@
     </form>
 </div>
 
-<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Les derniers posts</h2>
+<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Les derniers sujets</h2>
 
-{{if .Posts}}
-    {{range .Posts}}
+{{if .Topics}}
+    {{range .Topics}}
     <div class="post">
         <div class="post-header">
             <span>
+                <span class="topic-category">{{.CategoryName}}</span>
                 <strong>{{.Username}}</strong> - 
                 {{.CreatedAt.Format "02/01/2006 15:04"}}
             </span>
@@ -32,12 +43,12 @@
         <div class="post-title">{{.Title}}</div>
         <div class="post-content">{{.Content}}</div>
         
-        {{if .Replies}}
+        {{if .Comments}}
             <div style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;">
-                {{len .Replies}} réponse(s)
+                {{len .Comments}} commentaire(s)
             </div>
             
-            {{range .Replies}}
+            {{range .Comments}}
             <div class="reply">
                 <div class="reply-header">
                     <strong>{{.Username}}</strong> - 
@@ -50,16 +61,16 @@
         
         <form method="POST" action="/forum/post/{{.ID}}/reply" class="reply-form">
             <div class="form-group">
-                <label for="content">Répondre:</label>
-                <textarea id="content" name="content" required placeholder="Votre réponse..." style="min-height: 80px;"></textarea>
+                <label for="content-{{.ID}}">Commenter:</label>
+                <textarea id="content-{{.ID}}" name="content" required placeholder="Votre commentaire..." style="min-height: 80px;"></textarea>
             </div>
-            <button type="submit">Envoyer la réponse</button>
+            <button type="submit">Envoyer le commentaire</button>
         </form>
     </div>
     {{end}}
 {{else}}
     <div class="card center" style="color: #7f8c8d;">
-        <p>Aucun post pour le moment. Soyez le premier à créer un sujet ! ✍️</p>
+        <p>Aucun sujet pour le moment. Soyez le premier à créer un sujet.</p>
     </div>
 {{end}}
 {{end}}

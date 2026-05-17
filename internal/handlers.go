@@ -14,9 +14,25 @@ import (
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
 
+	categories, err := GetAllCategories()
+	if err != nil {
+		log.Printf("Erreur récupération catégories: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	topics, err := GetLatestTopics(10)
+	if err != nil {
+		log.Printf("Erreur récupération derniers sujets: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
 	data := PageData{
 		IsLoggedIn: user != nil,
 		User:       user,
+		Categories: categories,
+		Topics:     topics,
 	}
 
 	renderTemplate(w, "layout.html", "index.html", data)
@@ -237,28 +253,37 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func ForumHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
 
-	// Récupérer tous les posts
-	posts, err := GetAllPosts()
+	categories, err := GetAllCategories()
 	if err != nil {
-		log.Printf("Erreur récupération posts: %v", err)
+		log.Printf("Erreur récupération catégories: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
 		return
 	}
 
-	// Charger les réponses pour chaque post
-	for i := range posts {
-		replies, err := GetRepliesByPostID(posts[i].ID)
+	// Récupérer tous les sujets
+	topics, err := GetAllTopics()
+	if err != nil {
+		log.Printf("Erreur récupération sujets: %v", err)
+		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+		return
+	}
+
+	// Charger les commentaires pour chaque sujet
+	for i := range topics {
+		comments, err := GetCommentsByTopic(topics[i].ID)
 		if err != nil {
-			log.Printf("Erreur récupération réponses: %v", err)
+			log.Printf("Erreur récupération commentaires: %v", err)
 			continue
 		}
-		posts[i].Replies = replies
+		topics[i].Comments = comments
+		topics[i].CommentCount = len(comments)
 	}
 
 	data := PageData{
 		IsLoggedIn: true,
 		User:       user,
-		Posts:      posts,
+		Categories: categories,
+		Topics:     topics,
 	}
 
 	renderTemplate(w, "layout.html", "forum.html", data)
@@ -280,24 +305,26 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	title := strings.TrimSpace(r.FormValue("title"))
 	content := strings.TrimSpace(r.FormValue("content"))
+	categoryID := strings.TrimSpace(r.FormValue("category_id"))
 
 	// Valider les données
-	if title == "" || content == "" {
+	if title == "" || content == "" || categoryID == "" {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
 		return
 	}
 
-	// Créer le post
-	post := &Post{
-		ID:      uuid.New().String(),
-		UserID:  user.ID,
-		Title:   title,
-		Content: content,
+	// Créer le sujet
+	topic := &Topic{
+		ID:         uuid.New().String(),
+		CategoryID: categoryID,
+		UserID:     user.ID,
+		Title:      title,
+		Content:    content,
 	}
 
-	err = CreatePost(post)
+	err = CreateTopic(topic)
 	if err != nil {
-		log.Printf("Erreur création post: %v", err)
+		log.Printf("Erreur création sujet: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
 		return
 	}
@@ -319,9 +346,9 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer l'ID du post depuis l'URL
-	postID := r.PathValue("id")
-	if postID == "" {
+	// Récupérer l'ID du sujet depuis l'URL
+	topicID := r.PathValue("id")
+	if topicID == "" {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
 		return
 	}
@@ -334,17 +361,17 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Créer la réponse
-	reply := &Reply{
+	// Créer le commentaire
+	comment := &Comment{
 		ID:      uuid.New().String(),
-		PostID:  postID,
+		TopicID: topicID,
 		UserID:  user.ID,
 		Content: content,
 	}
 
-	err = CreateReply(reply)
+	err = CreateComment(comment)
 	if err != nil {
-		log.Printf("Erreur création réponse: %v", err)
+		log.Printf("Erreur création commentaire: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
 		return
 	}
@@ -357,7 +384,9 @@ func renderTemplate(w http.ResponseWriter, layoutName, pageName string, data int
 	layoutPath := filepath.Join("templates", layoutName)
 	pagePath := filepath.Join("templates", pageName)
 
-	t, err := template.ParseFiles(layoutPath, pagePath)
+	t, err := template.New(layoutName).Funcs(template.FuncMap{
+		"contains": containsAny,
+	}).ParseFiles(layoutPath, pagePath)
 	if err != nil {
 		log.Printf("Erreur parsing template: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
@@ -370,4 +399,13 @@ func renderTemplate(w http.ResponseWriter, layoutName, pageName string, data int
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
 		return
 	}
+}
+
+func containsAny(value string, needles ...string) bool {
+	for _, needle := range needles {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }
