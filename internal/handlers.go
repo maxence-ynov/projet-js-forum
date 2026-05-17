@@ -13,6 +13,8 @@ import (
 // HomeHandler affiche la page d'accueil
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
+	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
+	selectedCategoryName := ""
 
 	categories, err := GetAllCategories()
 	if err != nil {
@@ -21,7 +23,23 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topics, err := GetLatestTopics(10)
+	var topics []Topic
+	if selectedCategoryID != "" {
+		category, err := GetCategoryByID(selectedCategoryID)
+		if err != nil {
+			log.Printf("Erreur récupération catégorie: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+		if category == nil {
+			http.NotFound(w, r)
+			return
+		}
+		selectedCategoryName = category.Name
+		topics, err = GetLatestTopicsByCategory(selectedCategoryID, 10)
+	} else {
+		topics, err = GetLatestTopics(10)
+	}
 	if err != nil {
 		log.Printf("Erreur récupération derniers sujets: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
@@ -29,10 +47,12 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
-		IsLoggedIn: user != nil,
-		User:       user,
-		Categories: categories,
-		Topics:     topics,
+		IsLoggedIn:           user != nil,
+		User:                 user,
+		Categories:           categories,
+		Topics:               topics,
+		SelectedCategoryID:   selectedCategoryID,
+		SelectedCategoryName: selectedCategoryName,
 	}
 
 	renderTemplate(w, "layout.html", "index.html", data)
@@ -252,6 +272,8 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 // ForumHandler affiche la page du forum
 func ForumHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
+	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
+	selectedCategoryName := ""
 
 	categories, err := GetAllCategories()
 	if err != nil {
@@ -260,8 +282,23 @@ func ForumHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer tous les sujets
-	topics, err := GetAllTopics()
+	var topics []Topic
+	if selectedCategoryID != "" {
+		category, err := GetCategoryByID(selectedCategoryID)
+		if err != nil {
+			log.Printf("Erreur récupération catégorie: %v", err)
+			http.Error(w, "Erreur serveur", http.StatusInternalServerError)
+			return
+		}
+		if category == nil {
+			http.NotFound(w, r)
+			return
+		}
+		selectedCategoryName = category.Name
+		topics, err = GetTopicsByCategory(selectedCategoryID)
+	} else {
+		topics, err = GetAllTopics()
+	}
 	if err != nil {
 		log.Printf("Erreur récupération sujets: %v", err)
 		http.Error(w, "Erreur serveur", http.StatusInternalServerError)
@@ -280,10 +317,12 @@ func ForumHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
-		IsLoggedIn: true,
-		User:       user,
-		Categories: categories,
-		Topics:     topics,
+		IsLoggedIn:           true,
+		User:                 user,
+		Categories:           categories,
+		Topics:               topics,
+		SelectedCategoryID:   selectedCategoryID,
+		SelectedCategoryName: selectedCategoryName,
 	}
 
 	renderTemplate(w, "layout.html", "forum.html", data)
@@ -329,7 +368,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/forum", http.StatusSeeOther)
+	http.Redirect(w, r, "/forum?category="+categoryID, http.StatusSeeOther)
 }
 
 // CreateReplyHandler crée une réponse à un post

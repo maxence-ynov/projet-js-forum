@@ -69,13 +69,13 @@ type Like struct {
 
 // PageData est utilisé pour passer les données aux templates
 type PageData struct {
-	IsLoggedIn bool
-	User       *User
-	Categories []Category
-	Topics     []Topic
-	Topic      *Topic
-	Comments   []Comment
+	IsLoggedIn           bool
+	User                 *User
+	Categories           []Category
+	Topics               []Topic
+	Topic                *Topic
+	Comments             []Comment
 	SelectedCategoryID   string
 	SelectedCategoryName string
-	Message    string // Pour afficher des messages de succès/erreur
+	Message              string // Pour afficher des messages de succès/erreur
 }

@@ -479,12 +479,15 @@ func GetLatestTopics(limit int) ([]Topic, error) {
 // GetTopicsByCategory récupère tous les topics d'une catégorie
 func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 	query := `
-		SELECT t.id, t.category_id, t.user_id, t.title, t.content, 
-		       t.created_at, t.updated_at, u.username, c.name
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
 		FROM topics t
 		JOIN users u ON t.user_id = u.id
 		JOIN categories c ON t.category_id = c.id
+		LEFT JOIN comments co ON co.topic_id = t.id
 		WHERE t.category_id = ?
+		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
+		         t.created_at, t.updated_at, u.username, c.name
 		ORDER BY t.updated_at DESC
 	`
 
@@ -500,9 +503,49 @@ func GetTopicsByCategory(categoryID string) ([]Topic, error) {
 		err := rows.Scan(
 			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
 			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("erreur scan topic: %w", err)
+		}
+		topics = append(topics, topic)
+	}
+
+	return topics, rows.Err()
+}
+
+// GetLatestTopicsByCategory récupère les derniers topics d'une catégorie.
+func GetLatestTopicsByCategory(categoryID string, limit int) ([]Topic, error) {
+	query := `
+		SELECT t.id, t.category_id, t.user_id, t.title, t.content,
+		       t.created_at, t.updated_at, u.username, c.name, COUNT(co.id)
+		FROM topics t
+		JOIN users u ON t.user_id = u.id
+		JOIN categories c ON t.category_id = c.id
+		LEFT JOIN comments co ON co.topic_id = t.id
+		WHERE t.category_id = ?
+		GROUP BY t.id, t.category_id, t.user_id, t.title, t.content,
+		         t.created_at, t.updated_at, u.username, c.name
+		ORDER BY t.created_at DESC
+		LIMIT ?
+	`
+
+	rows, err := DB.Query(query, categoryID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("erreur requête derniers topics par catégorie: %w", err)
+	}
+	defer rows.Close()
+
+	var topics []Topic
+	for rows.Next() {
+		var topic Topic
+		err := rows.Scan(
+			&topic.ID, &topic.CategoryID, &topic.UserID, &topic.Title, &topic.Content,
+			&topic.CreatedAt, &topic.UpdatedAt, &topic.Username, &topic.CategoryName,
+			&topic.CommentCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("erreur scan dernier topic par catégorie: %w", err)
 		}
 		topics = append(topics, topic)
 	}

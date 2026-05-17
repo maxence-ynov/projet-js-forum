@@ -10,9 +10,16 @@
 
         {{if .Categories}}
             <ul class="category-list">
+                <li class="category-item">
+                    <a class="category-link {{if not .SelectedCategoryID}}active{{end}}" href="/">
+                        Toutes les catégories
+                    </a>
+                </li>
                 {{range .Categories}}
                     <li class="category-item">
-                        <span class="category-name">{{.Name}}</span>
+                        <a class="category-link {{if eq $.SelectedCategoryID .ID}}active{{end}}" href="/?category={{.ID}}">
+                            {{.Name}}
+                        </a>
                         {{if .Description}}
                             <p class="category-description">{{.Description}}</p>
                         {{else}}
@@ -27,7 +34,11 @@
     </section>
 
     <section class="card">
-        <h2>Derniers sujets</h2>
+        {{if .SelectedCategoryName}}
+            <h2>Derniers sujets dans {{.SelectedCategoryName}}</h2>
+        {{else}}
+            <h2>Derniers sujets</h2>
+        {{end}}
 
         {{if .Topics}}
             <ul class="topic-list">
@@ -44,12 +55,16 @@
                 {{end}}
             </ul>
         {{else}}
-            <p class="topic-meta">Aucun sujet n'a encore été publié.</p>
+            {{if .SelectedCategoryName}}
+                <p class="topic-meta">Aucun sujet n'a encore été publié dans cette catégorie.</p>
+            {{else}}
+                <p class="topic-meta">Aucun sujet n'a encore été publié.</p>
+            {{end}}
         {{end}}
 
         <div class="mt-2">
             {{if .IsLoggedIn}}
-                <a href="/forum" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
+                <a href="/forum{{if .SelectedCategoryID}}?category={{.SelectedCategoryID}}{{end}}" style="display: inline-block; padding: 0.75rem 1.5rem; background-color: #3498db; color: white; border-radius: 4px;">
                     Créer un sujet
                 </a>
             {{else}}
