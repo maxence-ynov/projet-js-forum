@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/go-chi/chi/v5"
 )
 
 var errNotFound = errors.New("ressource introuvable")
@@ -356,7 +357,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 // TopicHandler affiche un sujet et ses commentaires.
 func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromRequest(r)
-	topicID := r.PathValue("id")
+	topicID := chi.URLParam(r, "id")
 	if !isValidUUID(topicID) {
 		NotFoundHandler(w, r)
 		return
@@ -404,7 +405,7 @@ func CreateReplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topicID := r.PathValue("id")
+	topicID := chi.URLParam(r, "id")
 	if !isValidUUID(topicID) {
 		http.Redirect(w, r, "/forum", http.StatusSeeOther)
 		return
@@ -453,7 +454,7 @@ func VoteTopicHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topicID := r.PathValue("id")
+	topicID := chi.URLParam(r, "id")
 	if !isValidUUID(topicID) {
 		NotFoundHandler(w, r)
 		return
@@ -501,8 +502,8 @@ func VoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topicID := r.PathValue("id")
-	commentID := r.PathValue("commentID")
+	topicID := chi.URLParam(r, "id")
+	commentID := chi.URLParam(r, "commentID")
 	if !isValidUUID(topicID) || !isValidUUID(commentID) {
 		NotFoundHandler(w, r)
 		return

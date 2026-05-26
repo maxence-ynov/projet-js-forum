@@ -1,6 +1,6 @@
 # Forum Go
 
-Application de forum web développée en Go, sans framework externe, avec rendu HTML côté serveur et persistance des données dans SQLite.
+Application de forum web développée en Go, utilisant le routeur léger `chi` pour les routes, avec rendu HTML côté serveur et persistance des données dans SQLite.
 
 Le projet propose une base fonctionnelle de forum communautaire : inscription, connexion, publication de sujets, commentaires, catégories, profil utilisateur et système de votes.
 
@@ -86,7 +86,9 @@ Le serveur démarre sur :
 http://localhost:8080
 ```
 
-La base de données `forum.db` est créée automatiquement à la racine du projet lors du premier lancement.
+La base de données `forum.db` est créée automatiquement à la racine du projet lors du premier lancement en mode local.
+
+Pour Docker, la base SQLite est stockée dans `./data/forum.db` via la variable d'environnement `FORUM_DB_PATH`.
 
 ## Structure du projet
 
@@ -255,6 +257,8 @@ Sur PowerShell :
 Remove-Item .\forum.db
 go run main.go
 ```
+
+Pour Docker, supprimez `./data/forum.db` et relancez `docker compose up` si nécessaire.
 
 ## Sécurité
 
