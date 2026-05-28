@@ -60,7 +60,7 @@ type Comment struct {
 	UserVote  string    // Vote de l'utilisateur connecté: "like", "dislike" ou vide
 }
 
-// Vote représente un vote unique pour un sujet ou commentaire.
+// Vote représente un vote unique pour un sujet ou comentaire.
 type Vote struct {
 	ID         string    `db:"id"`
 	UserID     string    `db:"user_id"`
