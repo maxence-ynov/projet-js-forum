@@ -20,7 +20,7 @@ const (
 	latestTopics
 )
 
-// HomeHandler affiche la page d'accueil.
+// HomeHandler affiche la page d'acueil.
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromContext(r.Context())
 	selectedCategoryID := strings.TrimSpace(r.URL.Query().Get("category"))
